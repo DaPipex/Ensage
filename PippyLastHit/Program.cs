@@ -112,7 +112,7 @@ namespace PippyLastHit
 
                 if (minion != null)
                 {
-                    var timetoCheck = (UnitDatabase.GetAttackBackswing(meLulz) + meLulz.GetTurnTime(minion)) + meLulz.Distance2D(minion) / ProjSpeed(meLulz);
+                    var timetoCheck = (UnitDatabase.GetAttackBackswing(meLulz) + meLulz.GetTurnTime(minion)) + meLulz.Distance2D(minion) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed;
 
                     var predictedHealth = PredictedDamage(minion, (float)timetoCheck);
 
@@ -226,7 +226,7 @@ namespace PippyLastHit
 
                 Drawing.DrawText("Last hitting is: " + ((lastHittingHold || lastHittingToggle) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("My hero's projectile speed is: " + ProjSpeed(meLulz).ToString(), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen,
+                Drawing.DrawText("My hero's projectile speed is: " + UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed.ToString(), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My hero's name is: " + meLulz.Name.ToLowerInvariant(), new Vector2(fixedWidth, fixedHeight + 40), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
