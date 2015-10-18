@@ -19,12 +19,12 @@ namespace PippyLastHit
 
         private static bool gameLoad;
 
-        private static Font pippyFont; //Temporary Solution, I like Drawing.DrawText better.
-
         private static bool lastHittingHold;
         private static bool lastHittingToggle;
 
         private static int _lastToggleT;
+
+        private static List<Projectile> creepShots = new List<Projectile>();
 
         static void Main(string[] args)
         {
@@ -33,12 +33,9 @@ namespace PippyLastHit
             lastHittingToggle = false;
             _lastToggleT = 0;
 
-            pippyFont = new Font(Drawing.Direct3DDevice9, 20, 0, FontWeight.Bold, 0, false, FontCharacterSet.Default, FontPrecision.Default, FontQuality.Antialiased, FontPitchAndFamily.Default,
-                "Tahoma");
-
             //Events
             Game.OnUpdate += LHUpdate;
-            Drawing.OnEndScene += LHDrawing;
+            Drawing.OnDraw += LHDrawing;
             Game.OnWndProc += LHWndProc;
             //Game.OnProcessSpell += LHProcSpell;
         }
@@ -63,6 +60,17 @@ namespace PippyLastHit
             var PhysDamage = meLulz.MinimumDamage + meLulz.BonusDamage;
 
             double _damageMP = 1 - 0.06 * unit.Armor / (1 + 0.06 * Math.Abs(unit.Armor));
+
+            double realDamage = PhysDamage * _damageMP;
+
+            return realDamage;
+        }
+
+        private static double GetPhysDamageOnUnit(Unit source, Unit target)
+        {
+            var PhysDamage = source.MinimumDamage + source.BonusDamage;
+
+            double _damageMP = 1 - 0.06 * target.Armor / (1 + 0.06 * Math.Abs(target.Armor));
 
             double realDamage = PhysDamage * _damageMP;
 
@@ -102,12 +110,25 @@ namespace PippyLastHit
                     .Where(creep => creep.IsAlive && meLulz.Distance2D(creep) <= meLulz.GetAttackRange())
                     .OrderBy(creep => creep.Health).DefaultIfEmpty(null).FirstOrDefault();
 
-
-                if (minion != null && minion.Health < GetPhysDamageOnUnit(minion))
+                if (minion != null)
                 {
-                    if (meLulz.CanAttack())
+                    var timetoCheck = (UnitDatabase.GetAttackBackswing(meLulz) + meLulz.GetTurnTime(minion)) + meLulz.Distance2D(minion) / ProjSpeed(meLulz);
+
+                    var predictedHealth = PredictedDamage(minion, (float)timetoCheck);
+
+                    if (predictedHealth > 0 && predictedHealth < GetPhysDamageOnUnit(minion))
                     {
-                        meLulz.Attack(minion);
+                        if (meLulz.CanAttack())
+                        {
+                            meLulz.Attack(minion);
+                        }
+                    }
+                    else
+                    {
+                        if (lastHittingHold)
+                        {
+                            meLulz.Move(Game.MousePosition);
+                        }
                     }
                 }
                 else
@@ -120,15 +141,68 @@ namespace PippyLastHit
             }
         }
 
-        private static float PredictedDamage(Unit unit)
+        private static float PredictedDamage(Creep creep, float timeToCheck = 1500f)
         {
-            var myTimeToArrive = ProjSpeedTicks(meLulz, unit) + Environment.TickCount + (Game.Ping / 1000) + UnitDatabase.GetAttackBackswing(meLulz);
+            var myTimeToArrive = ProjSpeedTicks(meLulz, creep) + Environment.TickCount + (Game.Ping / 1000) + UnitDatabase.GetAttackBackswing(meLulz);
 
-            var myDmgOnMinion = GetPhysDamageOnUnit(unit);
+            var myDmgOnMinion = GetPhysDamageOnUnit(creep);
 
-            return 15f;
+            var minionProjectiles = ObjectMgr.Projectiles.Where(projectile => projectile.Source.GetType() == typeof(Creep) && projectile.Target.GetType() == typeof(Creep)).ToList();
 
-            //Not yet used
+            var enemyMinionProjs = minionProjectiles.Where(projectile => projectile.Source.Team != meLulz.Team).ToList();
+
+            var allyMinionProjs = minionProjectiles.Where(projectile => projectile.Source.Team == meLulz.Team).ToList();
+
+            if (creep.Team != meLulz.Team) //Enemy Creep
+            {
+                var TotalMinionDMG = 0d;
+                var maxTimeCheck = Environment.TickCount + timeToCheck;
+
+                foreach (var allyProj in allyMinionProjs)
+                {
+                    var MinionDMG = 0d;
+
+                    if (allyProj.Target == creep)
+                    {
+                        var projArrivalTime = Environment.TickCount + (allyProj.Position.Distance2D(allyProj.Target.Position) / MinionProjSpeed((Creep)allyProj.Source));
+                        if (projArrivalTime < maxTimeCheck)
+                        {
+                            MinionDMG = GetPhysDamageOnUnit((Unit)allyProj.Source, (Unit)allyProj.Target);
+                        }
+                    }
+
+                    TotalMinionDMG += MinionDMG;
+                }
+
+                return creep.Health - (int)TotalMinionDMG;
+            }
+
+            if (creep.Team == meLulz.Team) //Ally Team
+            {
+                var TotalMinionDMG = 0d;
+                var maxTimeCheck = Environment.TickCount + timeToCheck;
+
+                foreach (var enemyProj in enemyMinionProjs)
+                {
+                    var MinionDMG = 0d;
+
+                    if (enemyProj.Target == creep)
+                    {
+                        var projArrivalTime = Environment.TickCount + (enemyProj.Position.Distance2D(enemyProj.Target.Position) / MinionProjSpeed((Creep)enemyProj.Source));
+                        if (projArrivalTime < maxTimeCheck)
+                        {
+                            MinionDMG = GetPhysDamageOnUnit((Unit)enemyProj.Source, (Unit)enemyProj.Target);
+                        }
+                    }
+
+                    TotalMinionDMG += MinionDMG;
+                }
+
+                return creep.Health - (int)TotalMinionDMG;
+            }
+
+            return 0f;
+
         }
 
 
@@ -147,21 +221,38 @@ namespace PippyLastHit
         {
             if (gameLoad)
             {
-                float fixedWidth = /*Drawing.Width * 5 / 100;*/ 15f;
-                float fixedHeight = /*Drawing.Height * 10 / 100;*/ 120f;
+                float fixedWidth = Drawing.Width * 5 / 100;
+                float fixedHeight = Drawing.Height * 10 / 100;
 
-                //Drawing.DrawText("Last Hitting is: " + (Game.IsKeyDown(84) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), new Vector2(18), Color.LightGreen, FontFlags.DropShadow);
-                pippyFont.DrawText(null, "Last hitting is: " + ((lastHittingHold || lastHittingToggle) ? "enabled" : "disabled"), (int)fixedWidth, (int)fixedHeight, Color.LightGreen);
-                pippyFont.DrawText(null, "My hero's projectile speed is: " + ProjSpeed(meLulz).ToString(), (int)fixedWidth, (int)fixedHeight + 20, Color.DarkGreen);
-                pippyFont.DrawText(null, "My hero's name is: " + meLulz.Name.ToLowerInvariant(), (int)fixedWidth, (int)fixedHeight + 40, Color.OrangeRed);
+                Drawing.DrawText("Last hitting is: " + ((lastHittingHold || lastHittingToggle) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), Color.LightGreen,
+                    FontFlags.AntiAlias & FontFlags.DropShadow);
+                Drawing.DrawText("My hero's projectile speed is: " + ProjSpeed(meLulz).ToString(), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen,
+                    FontFlags.AntiAlias & FontFlags.DropShadow);
+                Drawing.DrawText("My hero's name is: " + meLulz.Name.ToLowerInvariant(), new Vector2(fixedWidth, fixedHeight + 40), Color.LightGreen,
+                    FontFlags.AntiAlias & FontFlags.DropShadow);
             }
         }
 
-        public static void PippyDrawCircle(float x, float y, float z, float radius, Color color)
+        /*private static void PippyDrawCircle(double x, double y, double z, double radius = 550f, double width = 1, Color? color = null)
         {
-            var heroPosGame = new Vector3(x, y, z);
-            //Draw circle with SharpDx once I get Camera Position Values
-        }
+            var CColor = (color == null) ? Color.White : color;
+            var heroPosGame = new Vector3((float)x, (float)y, (float)z);
+            var screenPos = Drawing.WorldToScreen(heroPosGame);
+
+            var quality = Math.Max(8, (180 / MathUtil.RadiansToDegrees((float)(Math.Asin((100 / (2 * radius)))))));
+            quality = (float)(2 * Math.PI / quality);
+            radius = radius * .92;
+
+            List<Vector2> points = new List<Vector2>();
+
+            for (double theta = 0; theta < 2 * Math.PI + quality; theta += quality)
+            {
+                var cPoint = Drawing.WorldToScreen(new Vector3((float)(x + radius * Math.Cos(theta)), (float)y, (float)(z - radius * Math.Sin(theta))));
+                points[points.Count + 1] = (Point)new Vector2(cPoint.X, cPoint.Y);
+            }
+
+            pippyLine.Draw(points.ToArray(), (ColorBGRA)CColor);
+        }*/
 
         private static void LHProcSpell(Unit sender, Ability ability)
         {
@@ -171,30 +262,44 @@ namespace PippyLastHit
             }
         }
 
+        private static float MinionProjSpeed(Creep creep)
+        {
+            if (creep.ClassID == ClassID.CDOTA_BaseNPC_Creep_Lane && creep.IsRanged)
+            {
+                return 900f;
+            }
+            else if (creep.ClassID == ClassID.CDOTA_BaseNPC_Creep_Siege)
+            {
+                return 1100;
+            }
+
+            return float.PositiveInfinity;
+        }
+
         private static float ProjSpeed(Hero hero)
         {
             var projSpeed = 0f;
 
             switch (hero.Name.ToLowerInvariant())
             {
-                case "npc_dota_hero_ancientapparition":
+                case "npc_dota_hero_ancient_apparition":
                     projSpeed = 1250;
                     break;
                 case "npc_dota_hero_bane":
-                case "npc_dota_hero_batrider":
+                case "npc_dota_hero_bat_rider":
                     projSpeed = 900;
                     break;
                 case "npc_dota_hero_chen":
                     projSpeed = 1100;
                     break;
                 case "npc_dota_hero_clinkz":
-                case "npc_dota_hero_crystalmaiden":
+                case "npc_dota_hero_crystal_maiden":
                     projSpeed = 900;
                     break;
                 case "npc_dota_hero_dazzle":
                     projSpeed = 1200;
                     break;
-                case "npc_dota_hero_deathprophet":
+                case "npc_dota_hero_death_prophet":
                     projSpeed = 1000;
                     break;
                 case "npc_dota_hero_disruptor":
@@ -222,7 +327,7 @@ namespace PippyLastHit
                 case "npc_dota_hero_jakiro":
                     projSpeed = 1100;
                     break;
-                case "npc_dota_hero_keeperofthelight":
+                case "npc_dota_hero_keeper_of_the_light":
                     projSpeed = 900;
                     break;
                 case "npc_dota_hero_leshrac":
@@ -233,7 +338,7 @@ namespace PippyLastHit
                 case "npc_dota_hero_lion":
                     projSpeed = 1000;
                     break;
-                case "npc_dota_hero_lonedruid":
+                case "npc_dota_hero_lone_druid":
                 case "npc_dota_hero_luna":
                     projSpeed = 900;
                     break;
@@ -246,14 +351,14 @@ namespace PippyLastHit
                 case "npc_dota_hero_morphling":
                     projSpeed = 1300;
                     break;
-                case "npc_dota_hero_naturesprophet":
+                case "npc_dota_hero_natures_prophet":
                     projSpeed = 1125;
                     break;
                 case "npc_dota_hero_necrophos":
                     projSpeed = 900;
                     break;
                 case "npc_dota_hero_oracle":
-                case "npc_dota_hero_outworlddevourer":
+                case "npc_dota_hero_outworld_devourer":
                     projSpeed = 900;
                     break;
                 case "npc_dota_hero_phoenix":
@@ -263,7 +368,7 @@ namespace PippyLastHit
                 case "npc_dota_hero_pugna":
                     projSpeed = 900;
                     break;
-                case "npc_dota_hero_queenofpain":
+                case "npc_dota_hero_queen_of_pain":
                     projSpeed = 1500;
                     break;
                 case "npc_dota_hero_razor":
@@ -272,34 +377,34 @@ namespace PippyLastHit
                 case "npc_dota_hero_rubick":
                     projSpeed = 1125;
                     break;
-                case "npc_dota_hero_shadowdemon":
+                case "npc_dota_hero_shadow_demon":
                     projSpeed = 900;
                     break;
-                case "npc_dota_hero_shadowfiend":
+                case "npc_dota_hero_shadow_fiend":
                     projSpeed = 1200;
                     break;
-                case "npc_dota_hero_shadowshaman":
+                case "npc_dota_hero_shadow_shaman":
                     projSpeed = 900;
                     break;
                 case "npc_dota_hero_silencer":
-                case "npc_dota_hero_skywrathmage":
+                case "npc_dota_hero_skywrath_mage":
                     projSpeed = 1000;
                     break;
                 case "npc_dota_hero_sniper":
                     projSpeed = 3000;
                     break;
-                case "npc_dota_hero_stormspirit":
+                case "npc_dota_hero_storm_spirit":
                     projSpeed = 1100;
                     break;
                 case "npc_dota_hero_techies":
-                case "npc_dota_hero_templarassassin":
+                case "npc_dota_hero_templar_assassin":
                 case "npc_dota_hero_tinker":
                     projSpeed = 900;
                     break;
-                case "npc_dota_hero_trollwarlord":
+                case "npc_dota_hero_troll_warlord":
                     projSpeed = 1200;
                     break;
-                case "npc_dota_hero_vengefulspirit":
+                case "npc_dota_hero_vengeful_spirit":
                     projSpeed = 1500;
                     break;
                 case "npc_dota_hero_venomancer":
@@ -317,13 +422,13 @@ namespace PippyLastHit
                 case "npc_dota_hero_weaver":
                     projSpeed = 900;
                     break;
-                case "npc_dota_hero_windranger":
+                case "npc_dota_hero_wind_ranger":
                     projSpeed = 1200;
                     break;
-                case "npc_dota_hero_winterwyvern":
+                case "npc_dota_hero_winter_wyvern":
                     projSpeed = 700;
                     break;
-                case "npc_dota_hero_witchdoctor":
+                case "npc_dota_hero_witch_doctor":
                     projSpeed = 1200;
                     break;
                 case "npc_dota_hero_zeus":
