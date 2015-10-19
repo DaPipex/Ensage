@@ -9,6 +9,7 @@ using Ensage.Common;
 using Ensage.Common.Extensions;
 using SharpDX;
 using SharpDX.Direct3D9;
+using HotKeyChanger;
 
 namespace PippyLastHit
 {
@@ -19,26 +20,32 @@ namespace PippyLastHit
 
         private static bool gameLoad;
 
-        private static bool lastHittingHold;
-        private static bool lastHittingToggle;
+        //private static bool lastHittingHold;
+        //private static bool lastHittingToggle;
 
         private static int _lastToggleT;
 
         private static float testValue;
 
+        private static bool onLoad;
+
+        private static HKC lastHitHold;
+        private static HKC lastHitToggle;
+
 
         static void Main(string[] args)
         {
             gameLoad = false;
-            lastHittingHold = false;
-            lastHittingToggle = false;
+            //lastHittingHold = false;
+            //lastHittingToggle = false;
             _lastToggleT = 0;
             testValue = 0f;
+            onLoad = false;
 
             //Events
             Game.OnUpdate += LHUpdate;
             Drawing.OnDraw += LHDrawing;
-            Game.OnWndProc += LHWndProc;
+            //Game.OnWndProc += LHWndProc;
             //Game.OnProcessSpell += LHProcSpell;
         }
 
@@ -54,11 +61,17 @@ namespace PippyLastHit
                 gameLoad = false;
             }
 
-            if (gameLoad && (lastHittingHold || lastHittingToggle))
+            if (gameLoad && !onLoad)
+            {
+                lastHitHold = new HKC("lasthithold", "Last Hit Hold", 65, HKC.KeyMode.HOLD, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 50), Color.LightGreen);
+                lastHitToggle = new HKC("lasthittoggle", "Last Hit Toggle", 84, HKC.KeyMode.TOGGLE, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 30), Color.LightGreen);
+                onLoad = true;
+            }
+
+            if (gameLoad && (lastHitHold.IsActive || lastHitToggle.IsActive))
             {
                 LastHit();
             }
-
         }
 
         private static float GetPhysDamageOnUnit(Unit unit)
@@ -83,6 +96,7 @@ namespace PippyLastHit
             return (float)realDamage;
         }
 
+        /*
         private static void LHWndProc(WndEventArgs args)
         {
             if (gameLoad)
@@ -107,6 +121,7 @@ namespace PippyLastHit
             }
 
         }
+        */
 
         private static void LastHit()
         {
@@ -131,7 +146,7 @@ namespace PippyLastHit
                 }
                 else
                 {
-                    if (lastHittingHold)
+                    if (lastHitHold.IsActive)
                     {
                         meLulz.Move(Game.MousePosition);
                     }
@@ -139,7 +154,7 @@ namespace PippyLastHit
             }
             else
             {
-                if (lastHittingHold)
+                if (lastHitHold.IsActive)
                 {
                     meLulz.Move(Game.MousePosition);
                 }
@@ -235,7 +250,7 @@ namespace PippyLastHit
                 float fixedWidth = Drawing.Width * 5 / 100;
                 float fixedHeight = Drawing.Height * 10 / 100;
 
-                Drawing.DrawText("Last hitting is: " + ((lastHittingHold || lastHittingToggle) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), Color.LightGreen,
+                Drawing.DrawText("Last hitting is: " + ((lastHitHold.IsActive || lastHitToggle.IsActive) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My hero's projectile speed is: " + UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed.ToString(), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
