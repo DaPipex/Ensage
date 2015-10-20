@@ -59,6 +59,10 @@ namespace PippyLastHit
             else
             {
                 gameLoad = false;
+                onLoad = false;
+
+                lastHitHold = null;
+                lastHitToggle = null;
             }
 
             if (gameLoad && !onLoad)
