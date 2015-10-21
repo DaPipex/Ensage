@@ -68,6 +68,16 @@ namespace PippyLastHit
 
                 allyCreeps = ObjectMgr.GetEntities<Creep>().Where(creep => creep.Team == meLulz.Team).ToList();
                 enemyCreeps = ObjectMgr.GetEntities<Creep>().Where(creep => creep.Team == meLulz.GetEnemyTeam()).ToList();
+
+                allyMinionProjs = ObjectMgr.Projectiles.ToList().Where(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
+                proj.Source.Team == meLulz.Team).ToList();
+
+                enemMinionProjs = ObjectMgr.Projectiles.ToList().Where(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
+                proj.Source.Team == meLulz.GetEnemyTeam()).ToList();
+
+                tminion = ObjectMgr.GetEntities<Creep>()
+                .Where(creep => creep.IsAlive && meLulz.Distance2D(creep) <= meLulz.GetAttackRange())
+                .OrderBy(creep => creep.Health).DefaultIfEmpty(null).FirstOrDefault();
             }
             else
             {
@@ -147,34 +157,22 @@ namespace PippyLastHit
 
         private static void LastHit()
         {
-            var minion = ObjectMgr.GetEntities<Creep>()
-                .Where(creep => creep.IsAlive && meLulz.Distance2D(creep) <= meLulz.GetAttackRange())
-                .OrderBy(creep => creep.Health).DefaultIfEmpty(null).FirstOrDefault();
 
-            if (minion != null)
+            if (tminion != null)
             {
-                tminion = minion;
-            }
-            else
-            {
-                tminion = null;
-            }
-
-            if (minion != null)
-            {
-                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + (Game.Ping > 125 ? (Game.Ping / 2 + 60) : Game.Ping) + meLulz.GetTurnTime(minion) * 1000 + Math.Max(0, meLulz.Distance2D(minion) - meLulz.HullRadius) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
+                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + (Game.Ping > 125 ? (Game.Ping / 2 + 60) : Game.Ping) + meLulz.GetTurnTime(tminion) * 1000 + Math.Max(0, meLulz.Distance2D(tminion) - meLulz.HullRadius) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
 
                 testValue = (float)timeToCheck;
 
-                var predictedHealth = PredictedDamage(minion, (float)timeToCheck);
+                var predictedHealth = PredictedDamage(tminion, (float)timeToCheck);
 
                 predDamage = predictedHealth;
 
-                if (predictedHealth < GetPhysDamageOnUnit(minion))
+                if (predictedHealth < GetPhysDamageOnUnit(tminion))
                 {
                     if (meLulz.CanAttack())
                     {
-                        meLulz.Attack(minion);
+                        meLulz.Attack(tminion);
                     }
                 }
                 else
@@ -196,16 +194,6 @@ namespace PippyLastHit
 
         private static float PredictedDamage(Creep creep, float timeToCheck = 1500f)
         {
-
-            //Ranged Creep Logic
-
-            allyMinionProjs = ObjectMgr.Projectiles.ToList().FindAll(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
-            proj.Source.Team == meLulz.Team);
-
-            enemMinionProjs = ObjectMgr.Projectiles.ToList().FindAll(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
-            proj.Source.Team != meLulz.Team);
-
-
 
             if (creep.Team != meLulz.Team) //Enemy Creep
             {
@@ -418,7 +406,7 @@ namespace PippyLastHit
                     }
                 }
 
-            */
+            
 
                 if (tminion != null)
                 {
@@ -428,6 +416,7 @@ namespace PippyLastHit
                     Drawing.DrawText("My AA damage on creep: " + GetPhysDamageOnUnit(tminion), new Vector2(Drawing.WorldToScreen(tminion.Position).X, Drawing.WorldToScreen(tminion.Position).Y - 20),
                         Color.LightCoral, FontFlags.AntiAlias & FontFlags.DropShadow);
                 }
+                */
             }
         }
 
