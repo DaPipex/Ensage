@@ -162,7 +162,7 @@ namespace PippyLastHit
 
             if (minion != null)
             {
-                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + Game.Ping / 2 + meLulz.GetTurnTime(minion) * 1000 + Math.Max(0, meLulz.Distance2D(minion) - meLulz.HullRadius) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
+                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + (Game.Ping > 125 ? (Game.Ping / 2 + 60) : Game.Ping) + meLulz.GetTurnTime(minion) * 1000 + Math.Max(0, meLulz.Distance2D(minion) - meLulz.HullRadius) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
 
                 testValue = (float)timeToCheck;
 
