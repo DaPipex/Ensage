@@ -40,8 +40,7 @@ namespace PippyLastHit
         private static List<Creep> allyCreeps = new List<Creep>();
         private static List<Creep> enemyCreeps = new List<Creep>();
 
-        private static float predDamageMelee;
-        private static float predDamageRanged;
+        private static float predDamage;
 
 
         static void Main(string[] args)
@@ -103,6 +102,8 @@ namespace PippyLastHit
 
             var realDamage = PhysDamage * _damageMP;
 
+
+
             return (float)realDamage;
         }
 
@@ -161,21 +162,23 @@ namespace PippyLastHit
 
             if (minion != null)
             {
-                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 - 100 + Game.Ping / 2 + meLulz.GetTurnTime(minion) * 1000 + Math.Max(0, meLulz.Distance2D(minion) - meLulz.HullRadius) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
+                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + Game.Ping / 2 + meLulz.GetTurnTime(minion) * 1000 + Math.Max(0, meLulz.Distance2D(minion) - meLulz.HullRadius) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
 
                 testValue = (float)timeToCheck;
 
-                var predictedHealthRanged = PredictedDamageRanged(minion, (float)timeToCheck);
-                var predictedHealthMelee = PredictedDamageMelee(minion, (float)timeToCheck);
+                var predictedHealth = PredictedDamage(minion, (float)timeToCheck);
 
-                predDamageRanged = predictedHealthRanged;
-                predDamageMelee = predictedHealthMelee;
+                predDamage = predictedHealth;
 
-                if (predictedHealthRanged + predictedHealthMelee < GetPhysDamageOnUnit(minion))
+                if (predictedHealth < GetPhysDamageOnUnit(minion))
                 {
                     if (meLulz.CanAttack())
                     {
                         meLulz.Attack(minion);
+                    }
+                    else
+                    {
+                        meLulz.Move(Game.MousePosition);
                     }
                 }
                 else
@@ -195,23 +198,26 @@ namespace PippyLastHit
             }
         }
 
-        private static float PredictedDamageRanged(Creep creep, float timeToCheck = 1500f)
+        private static float PredictedDamage(Creep creep, float timeToCheck = 1500f)
         {
 
             //Ranged Creep Logic
-            
+
             allyMinionProjs = ObjectMgr.Projectiles.ToList().FindAll(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
             proj.Source.Team == meLulz.Team);
 
             enemMinionProjs = ObjectMgr.Projectiles.ToList().FindAll(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
             proj.Source.Team != meLulz.Team);
 
-            
+
 
             if (creep.Team != meLulz.Team) //Enemy Creep
             {
                 var TotalMinionDMG = 0f;
                 var maxTimeCheck = Environment.TickCount + timeToCheck;
+
+                var rangedDamage = 0f;
+                var meleeDamage = 0f;
 
                 if (allyMinionProjs.Any())
                 {
@@ -228,17 +234,41 @@ namespace PippyLastHit
                             }
                         }
 
-                        TotalMinionDMG += (float)MinionDMG;
+                        rangedDamage += (float)MinionDMG;
+                    }
+
+                }
+
+                if (allyCreeps.Any())
+                {
+                    foreach (var alCreep in allyCreeps)
+                    {
+                        var minionDMG = 0f;
+
+                        if (alCreep.IsAlive && alCreep.IsMelee && alCreep.Distance2D(creep) <= alCreep.AttackRange && alCreep.IsAttacking())
+                        {
+                            if (MinionAAData.GetAttackBackswing(alCreep) < maxTimeCheck)
+                            {
+                                minionDMG = GetPhysDamageOnUnit(alCreep, creep);
+                            }
+                        }
+
+                        meleeDamage += minionDMG;
                     }
                 }
 
-                return creep.Health - TotalMinionDMG;
+                TotalMinionDMG = rangedDamage + meleeDamage;
+
+                return Math.Max(0, creep.Health - TotalMinionDMG);
             }
 
             if (creep.Team == meLulz.Team) //Ally Team
             {
                 var TotalMinionDMG = 0f;
                 var maxTimeCheck = Environment.TickCount + timeToCheck;
+
+                var rangedDamage = 0f;
+                var meleeDamage = 0f;
 
                 if (enemMinionProjs.Any())
                 {
@@ -255,11 +285,31 @@ namespace PippyLastHit
                             }
                         }
 
-                        TotalMinionDMG += (float)MinionDMG;
+                        rangedDamage += (float)MinionDMG;
                     }
                 }
 
-                return creep.Health - TotalMinionDMG;
+                if (enemyCreeps.Any())
+                {
+                    foreach (var enCreep in enemyCreeps)
+                    {
+                        var minionDMG = 0f;
+
+                        if (enCreep.IsAlive && enCreep.IsMelee && enCreep.Distance2D(creep) <= enCreep.AttackRange && enCreep.IsAttacking())
+                        {
+                            if (MinionAAData.GetAttackBackswing(enCreep) < maxTimeCheck)
+                            {
+                                minionDMG = GetPhysDamageOnUnit(enCreep, creep);
+                            }
+                        }
+
+                        meleeDamage += minionDMG;
+                    }
+                }
+
+                TotalMinionDMG = rangedDamage + meleeDamage;
+
+                return Math.Max(0, creep.Health - TotalMinionDMG);
             }
 
             return 0f;
@@ -295,8 +345,6 @@ namespace PippyLastHit
                         totalMinionDMG += minionDMG;
                     }
                 }
-
-                return creep.Health - totalMinionDMG;
             }
 
             if (allyCreeps.Any())
@@ -354,12 +402,11 @@ namespace PippyLastHit
                 Drawing.DrawText("My backswing " + UnitDatabase.GetAttackBackswing(meLulz), new Vector2(fixedWidth, fixedHeight + 100), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My Turntime to minion: " + (tminion != null ? meLulz.GetTurnTime(tminion).ToString() : 0.ToString()), new Vector2(fixedWidth, fixedHeight + 120), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My ProjTick: " + (tminion != null ? ProjSpeedTicks(meLulz, tminion).ToString() : 0.ToString()), new Vector2(fixedWidth, fixedHeight + 140), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("Melee Pred Damage: " + (tminion != null ? predDamageMelee : 0), new Vector2(fixedWidth, fixedHeight + 160), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("Ranged Pred Damage: " + (tminion != null ? predDamageRanged : 0), new Vector2(fixedWidth, fixedHeight + 180), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
+                Drawing.DrawText("Pred Damage: " + (tminion != null ? predDamage : 0), new Vector2(fixedWidth, fixedHeight + 160), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
 
                 foreach (Projectile allyProj in allyMinionProjs)
                 {
-                    Drawing.DrawText("Proj speed is: " + allyProj.Speed.ToString(), Drawing.WorldToScreen(allyProj.Position), Color.Green, FontFlags.AntiAlias & FontFlags.DropShadow);
+                    Drawing.DrawText("Proj speed is: " + allyProj.Speed.ToString(), Drawing.WorldToScreen(allyProj.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 }
 
                 foreach (Projectile enemyProj in enemMinionProjs)
@@ -371,7 +418,7 @@ namespace PippyLastHit
                 {
                     if (creep.IsAlive && creep.IsVisible)
                     {
-                        Drawing.DrawText("This creep is: " + creep.ClassID + " - " + creep.IsRanged, Drawing.WorldToScreen(creep.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
+                        //Drawing.DrawText("This creep is: " + creep.ClassID + " - " + creep.IsRanged, Drawing.WorldToScreen(creep.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                     }
                 }
 
@@ -379,8 +426,17 @@ namespace PippyLastHit
                 {
                     if (creep.IsAlive && creep.IsVisible)
                     {
-                        Drawing.DrawText("This creep is: " + creep.ClassID + " - " + creep.IsRanged, Drawing.WorldToScreen(creep.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
+                        //Drawing.DrawText("This creep is: " + creep.ClassID + " - " + creep.IsRanged, Drawing.WorldToScreen(creep.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
                     }
+                }
+
+                if (tminion != null)
+                {
+                    Drawing.DrawText(string.Format("This minion HP: {0} - Pred Damage: {1}",
+                        tminion.Health, predDamage), Drawing.WorldToScreen(tminion.Position), Color.LightPink,
+                        FontFlags.AntiAlias & FontFlags.DropShadow);
+                    Drawing.DrawText("My AA damage on creep: " + GetPhysDamageOnUnit(tminion), new Vector2(Drawing.WorldToScreen(tminion.Position).X, Drawing.WorldToScreen(tminion.Position).Y - 20),
+                        Color.LightCoral, FontFlags.AntiAlias & FontFlags.DropShadow);
                 }
             }
         }
