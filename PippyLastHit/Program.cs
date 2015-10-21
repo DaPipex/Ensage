@@ -176,10 +176,6 @@ namespace PippyLastHit
                     {
                         meLulz.Attack(minion);
                     }
-                    else
-                    {
-                        meLulz.Move(Game.MousePosition);
-                    }
                 }
                 else
                 {
