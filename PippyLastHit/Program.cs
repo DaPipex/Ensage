@@ -394,35 +394,25 @@ namespace PippyLastHit
                 Drawing.DrawText("My hero's name is: " + meLulz.Name.ToLowerInvariant(), new Vector2(fixedWidth, fixedHeight + 40), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My ping is: " + Game.Ping, new Vector2(fixedWidth, fixedHeight + 60), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("Time to arrive: " + testValue, new Vector2(fixedWidth, fixedHeight + 80), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
+                Drawing.DrawText("Time to arrive: " + ((testValue != float.NaN) ? testValue : 0), new Vector2(fixedWidth, fixedHeight + 80), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My backswing " + UnitDatabase.GetAttackBackswing(meLulz), new Vector2(fixedWidth, fixedHeight + 100), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My Turntime to minion: " + (tminion != null ? meLulz.GetTurnTime(tminion).ToString() : 0.ToString()), new Vector2(fixedWidth, fixedHeight + 120), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My ProjTick: " + (tminion != null ? ProjSpeedTicks(meLulz, tminion).ToString() : 0.ToString()), new Vector2(fixedWidth, fixedHeight + 140), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("Pred Damage: " + (tminion != null ? predDamage : 0), new Vector2(fixedWidth, fixedHeight + 160), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
 
-                foreach (Projectile allyProj in allyMinionProjs)
+                if (allyMinionProjs.Any())
                 {
-                    Drawing.DrawText("Proj speed is: " + allyProj.Speed.ToString(), Drawing.WorldToScreen(allyProj.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                }
-
-                foreach (Projectile enemyProj in enemMinionProjs)
-                {
-                    Drawing.DrawText("Proj speed is: " + enemyProj.Speed.ToString(), Drawing.WorldToScreen(enemyProj.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
-                }
-
-                foreach (Creep creep in allyCreeps)
-                {
-                    if (creep.IsAlive && creep.IsVisible)
+                    foreach (Projectile allyProj in allyMinionProjs)
                     {
-                        //Drawing.DrawText("This creep is: " + creep.ClassID + " - " + creep.IsRanged, Drawing.WorldToScreen(creep.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
+                        Drawing.DrawText("Proj speed is: " + allyProj.Speed.ToString(), Drawing.WorldToScreen(allyProj.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                     }
                 }
 
-                foreach (Creep creep in enemyCreeps)
+                if (enemMinionProjs.Any())
                 {
-                    if (creep.IsAlive && creep.IsVisible)
+                    foreach (Projectile enemyProj in enemMinionProjs)
                     {
-                        //Drawing.DrawText("This creep is: " + creep.ClassID + " - " + creep.IsRanged, Drawing.WorldToScreen(creep.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
+                        Drawing.DrawText("Proj speed is: " + enemyProj.Speed.ToString(), Drawing.WorldToScreen(enemyProj.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
                     }
                 }
 
