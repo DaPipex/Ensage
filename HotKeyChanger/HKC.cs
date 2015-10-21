@@ -15,12 +15,19 @@ namespace HotKeyChanger
     public class HKC
     {
 
+        public enum KeyMode
+        {
+            HOLD,
+            TOGGLE,
+        }
+
         public string VarToCheck { get; private set; }
         public string DisplayText { get; private set; }
         public KeyMode SetMode { get; private set; }
         public Vector2 BoxPosition { get; private set; }
         public Color BoxColor { get; private set; }
         public uint Key { get; private set; }
+        private uint OrigKey { get; set; }
 
         private bool _isActive;
 
@@ -28,14 +35,10 @@ namespace HotKeyChanger
 
         private bool _choosingKey;
         private bool _isUnderCheckbox;
+        private bool _gameLoad;
 
         private static readonly Vector2 _textSize = new Vector2(20);
 
-        public enum KeyMode
-        {
-            HOLD,
-            TOGGLE,
-        }
 
         public HKC(string variable, string displayText, uint key, KeyMode mode, Vector2 pos, Color boxColor)
         {
@@ -45,6 +48,7 @@ namespace HotKeyChanger
             BoxPosition = pos;
             BoxColor = boxColor;
             Key = key;
+            OrigKey = key;
 
             keyToggleT = 0;
 
@@ -56,25 +60,40 @@ namespace HotKeyChanger
 
         private void HKC_Draw(EventArgs args)
         {
-            Drawing.DrawRect(BoxPosition, new Vector2(15, 15), BoxColor, false);
-            Drawing.DrawText(DisplayText + " [" + KeyToChar(Key) + "]", new Vector2(BoxPosition.X + 20, BoxPosition.Y), BoxColor, FontFlags.AntiAlias & FontFlags.DropShadow);
-
-            if (_choosingKey)
+            if (_gameLoad)
             {
-                Drawing.DrawText("Press a new key for this bind!", new Vector2(Drawing.Width / 2, Drawing.Height / 2), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
+                Drawing.DrawRect(BoxPosition, new Vector2(15, 15), BoxColor, false);
+                Drawing.DrawText(DisplayText + " [" + KeyToChar(Key) + "]", new Vector2(BoxPosition.X + 20, BoxPosition.Y), BoxColor, FontFlags.AntiAlias & FontFlags.DropShadow);
+
+                if (_choosingKey)
+                {
+                    Drawing.DrawText("Press a new key for this bind!", new Vector2(Drawing.Width / 2, Drawing.Height / 2), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
+                }
             }
         }
 
         private void HKC_Update(EventArgs args)
         {
-            if (Game.MouseScreenPosition.X >= BoxPosition.X && Game.MouseScreenPosition.X <= BoxPosition.X + 15 &&
-                Game.MouseScreenPosition.Y >= BoxPosition.Y && Game.MouseScreenPosition.Y <= BoxPosition.Y + 15)
+            if (Game.IsInGame && !Game.IsPaused && ObjectMgr.LocalHero != null)
             {
-                _isUnderCheckbox = true;
+                _gameLoad = true;
             }
             else
             {
-                _isUnderCheckbox = false;
+                Key = OrigKey;
+            }
+
+            if (_gameLoad)
+            {
+                if (Game.MouseScreenPosition.X >= BoxPosition.X && Game.MouseScreenPosition.X <= BoxPosition.X + 15 &&
+                    Game.MouseScreenPosition.Y >= BoxPosition.Y && Game.MouseScreenPosition.Y <= BoxPosition.Y + 15)
+                {
+                    _isUnderCheckbox = true;
+                }
+                else
+                {
+                    _isUnderCheckbox = false;
+                }
             }
 
             //Console.WriteLine("Key " + KeyToChar(Key) + " is: " + IsActive);
@@ -82,18 +101,20 @@ namespace HotKeyChanger
 
         private void HKC_WndProc(WndEventArgs args)
         {
-            if (args.Msg == (uint)Utils.WindowsMessages.WM_LBUTTONDOWN && !_choosingKey && _isUnderCheckbox && !Game.IsChatOpen)
+            if (_gameLoad)
             {
-                _choosingKey = true;
-                Utils.Sleep(250, "chooseKey");
-            }
-
-            if (_choosingKey && !Game.IsChatOpen && Utils.SleepCheck("chooseKey"))
-            {
-                if (args.Msg == (uint)Utils.WindowsMessages.WM_KEYDOWN)
+                if (args.Msg == (uint)Utils.WindowsMessages.WM_LBUTTONDOWN && !_choosingKey && _isUnderCheckbox && !Game.IsChatOpen)
                 {
-                    Key = (uint)args.WParam;
-                    _choosingKey = false;
+                    _choosingKey = true;
+                }
+
+                if (_choosingKey && !Game.IsChatOpen)
+                {
+                    if (args.Msg == (uint)Utils.WindowsMessages.WM_KEYDOWN)
+                    {
+                        Key = (uint)args.WParam;
+                        _choosingKey = false;
+                    }
                 }
             }
 
