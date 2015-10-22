@@ -84,12 +84,12 @@ namespace PippyLastHit
 
             if (gameLoad && !onLoad)
             {
-                //lastHitHold = new HKC("lasthithold", "Last Hit Hold", 65, HKC.KeyMode.HOLD, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 50), Color.LightGreen);
+                lastHitHold = new HKC("lasthithold", "Last Hit Hold", 65, HKC.KeyMode.HOLD, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 50), Color.LightGreen);
                 lastHitToggle = new HKC("lasthittoggle", "Last Hit Toggle", 84, HKC.KeyMode.TOGGLE, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 30), Color.LightGreen);
                 onLoad = true;
             }
 
-            if (gameLoad && (/*lastHitHold.IsActive ||*/ lastHitToggle.IsActive))
+            if (gameLoad && (lastHitHold.IsActive || lastHitToggle.IsActive))
             {
                 LastHit();
             }
@@ -166,7 +166,7 @@ namespace PippyLastHit
                         meLulz.Attack(tminion);
                     }
                 }
-                /*else
+                else
                 {
                     if (lastHitHold.IsActive)
                     {
@@ -179,7 +179,7 @@ namespace PippyLastHit
                 if (lastHitHold.IsActive)
                 {
                     meLulz.Move(Game.MousePosition);
-                }*/
+                }
             }
         }
 
@@ -375,7 +375,7 @@ namespace PippyLastHit
                 float fixedWidth = Drawing.Width * 5 / 100;
                 float fixedHeight = Drawing.Height * 10 / 100;
 
-                Drawing.DrawText("Last hitting is: " + ((/*lastHitHold.IsActive ||*/ lastHitToggle.IsActive) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), (/*lastHitHold.IsActive ||*/ lastHitToggle.IsActive) ? Color.LightGreen : Color.Red,
+                Drawing.DrawText("Last hitting is: " + ((lastHitHold.IsActive || lastHitToggle.IsActive) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), (lastHitHold.IsActive || lastHitToggle.IsActive) ? Color.LightGreen : Color.Red,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
                 /*
                 Drawing.DrawText("My hero's projectile speed is: " + UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed.ToString(), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen,
