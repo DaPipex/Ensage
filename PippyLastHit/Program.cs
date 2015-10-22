@@ -26,6 +26,7 @@ namespace PippyLastHit
         //private static bool lastHittingToggle;
 
         private static int _lastToggleT;
+        private static int _lastMoveT;
 
         private static float testValue;
 
@@ -168,16 +169,18 @@ namespace PippyLastHit
                 }
                 else
                 {
-                    if (lastHitHold.IsActive)
+                    if (lastHitHold.IsActive && _lastMoveT + 80 < Environment.TickCount)
                     {
+                        _lastMoveT = Environment.TickCount;
                         meLulz.Move(Game.MousePosition);
                     }
                 }
             }
             else
             {
-                if (lastHitHold.IsActive)
+                if (lastHitHold.IsActive && _lastMoveT + 80 < Environment.TickCount)
                 {
+                    _lastMoveT = Environment.TickCount;
                     meLulz.Move(Game.MousePosition);
                 }
             }
