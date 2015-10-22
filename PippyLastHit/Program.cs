@@ -66,8 +66,9 @@ namespace PippyLastHit
                 gameLoad = true;
                 meLulz = ObjectMgr.LocalHero;
 
-                allyCreeps = ObjectMgr.GetEntities<Creep>().Where(creep => creep.Team == meLulz.Team).ToList();
-                enemyCreeps = ObjectMgr.GetEntities<Creep>().Where(creep => creep.Team == meLulz.GetEnemyTeam()).ToList();
+                tminion = ObjectMgr.GetEntities<Creep>()
+                .Where(creep => creep.IsAlive && meLulz.Distance2D(creep) <= meLulz.GetAttackRange())
+                .OrderBy(creep => creep.Health).DefaultIfEmpty(null).FirstOrDefault();
             }
             else
             {
@@ -83,12 +84,12 @@ namespace PippyLastHit
 
             if (gameLoad && !onLoad)
             {
-                lastHitHold = new HKC("lasthithold", "Last Hit Hold", 65, HKC.KeyMode.HOLD, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 50), Color.LightGreen);
+                //lastHitHold = new HKC("lasthithold", "Last Hit Hold", 65, HKC.KeyMode.HOLD, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 50), Color.LightGreen);
                 lastHitToggle = new HKC("lasthittoggle", "Last Hit Toggle", 84, HKC.KeyMode.TOGGLE, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 30), Color.LightGreen);
                 onLoad = true;
             }
 
-            if (gameLoad && (lastHitHold.IsActive || lastHitToggle.IsActive))
+            if (gameLoad && (/*lastHitHold.IsActive ||*/ lastHitToggle.IsActive))
             {
                 LastHit();
             }
@@ -147,41 +148,25 @@ namespace PippyLastHit
 
         private static void LastHit()
         {
-            var minion = ObjectMgr.GetEntities<Creep>()
-                .Where(creep => creep.IsAlive && meLulz.Distance2D(creep) <= meLulz.GetAttackRange())
-                .OrderBy(creep => creep.Health).DefaultIfEmpty(null).FirstOrDefault();
 
-            if (minion != null)
+            if (tminion != null)
             {
-                tminion = minion;
-            }
-            else
-            {
-                tminion = null;
-            }
-
-            if (minion != null)
-            {
-                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + Game.Ping / 2 + meLulz.GetTurnTime(minion) * 1000 + Math.Max(0, meLulz.Distance2D(minion) - meLulz.HullRadius) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
+                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + (Game.Ping > 125 ? (Game.Ping / 2 + 60) : Game.Ping / 2) + meLulz.GetTurnTime(tminion) * 1000 + Math.Max(0, meLulz.Distance2D(tminion)) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
 
                 testValue = (float)timeToCheck;
 
-                var predictedHealth = PredictedDamage(minion, (float)timeToCheck);
+                var predictedHealth = PredictedDamage(tminion, (float)timeToCheck);
 
                 predDamage = predictedHealth;
 
-                if (predictedHealth < GetPhysDamageOnUnit(minion))
+                if (predictedHealth > 0 && predictedHealth < GetPhysDamageOnUnit(tminion))
                 {
-                    if (meLulz.CanAttack())
+                    if (!meLulz.IsAttacking())
                     {
-                        meLulz.Attack(minion);
-                    }
-                    else
-                    {
-                        meLulz.Move(Game.MousePosition);
+                        meLulz.Attack(tminion);
                     }
                 }
-                else
+                /*else
                 {
                     if (lastHitHold.IsActive)
                     {
@@ -194,22 +179,21 @@ namespace PippyLastHit
                 if (lastHitHold.IsActive)
                 {
                     meLulz.Move(Game.MousePosition);
-                }
+                }*/
             }
         }
 
         private static float PredictedDamage(Creep creep, float timeToCheck = 1500f)
         {
 
-            //Ranged Creep Logic
+            allyMinionProjs = ObjectMgr.Projectiles.ToList().Where(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
+            proj.Source.Team == meLulz.Team).ToList();
 
-            allyMinionProjs = ObjectMgr.Projectiles.ToList().FindAll(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
-            proj.Source.Team == meLulz.Team);
+            enemMinionProjs = ObjectMgr.Projectiles.ToList().Where(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
+            proj.Source.Team == meLulz.GetEnemyTeam()).ToList();
 
-            enemMinionProjs = ObjectMgr.Projectiles.ToList().FindAll(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
-            proj.Source.Team != meLulz.Team);
-
-
+            allyCreeps = ObjectMgr.GetEntities<Creep>().Where(creepMinion => creepMinion.Team == meLulz.Team).ToList();
+            enemyCreeps = ObjectMgr.GetEntities<Creep>().Where(creepMinion => creepMinion.Team == meLulz.GetEnemyTeam()).ToList();
 
             if (creep.Team != meLulz.Team) //Enemy Creep
             {
@@ -391,44 +375,38 @@ namespace PippyLastHit
                 float fixedWidth = Drawing.Width * 5 / 100;
                 float fixedHeight = Drawing.Height * 10 / 100;
 
-                Drawing.DrawText("Last hitting is: " + ((lastHitHold.IsActive || lastHitToggle.IsActive) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), Color.LightGreen,
+                Drawing.DrawText("Last hitting is: " + ((/*lastHitHold.IsActive ||*/ lastHitToggle.IsActive) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), (/*lastHitHold.IsActive ||*/ lastHitToggle.IsActive) ? Color.LightGreen : Color.Red,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
+                /*
                 Drawing.DrawText("My hero's projectile speed is: " + UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed.ToString(), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My hero's name is: " + meLulz.Name.ToLowerInvariant(), new Vector2(fixedWidth, fixedHeight + 40), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My ping is: " + Game.Ping, new Vector2(fixedWidth, fixedHeight + 60), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("Time to arrive: " + testValue, new Vector2(fixedWidth, fixedHeight + 80), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
+                Drawing.DrawText("Time to arrive: " + ((testValue != float.NaN) ? testValue : 0), new Vector2(fixedWidth, fixedHeight + 80), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My backswing " + UnitDatabase.GetAttackBackswing(meLulz), new Vector2(fixedWidth, fixedHeight + 100), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My Turntime to minion: " + (tminion != null ? meLulz.GetTurnTime(tminion).ToString() : 0.ToString()), new Vector2(fixedWidth, fixedHeight + 120), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("My ProjTick: " + (tminion != null ? ProjSpeedTicks(meLulz, tminion).ToString() : 0.ToString()), new Vector2(fixedWidth, fixedHeight + 140), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 Drawing.DrawText("Pred Damage: " + (tminion != null ? predDamage : 0), new Vector2(fixedWidth, fixedHeight + 160), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
+                
 
-                foreach (Projectile allyProj in allyMinionProjs)
+                if (allyMinionProjs.Any())
                 {
-                    Drawing.DrawText("Proj speed is: " + allyProj.Speed.ToString(), Drawing.WorldToScreen(allyProj.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                }
-
-                foreach (Projectile enemyProj in enemMinionProjs)
-                {
-                    Drawing.DrawText("Proj speed is: " + enemyProj.Speed.ToString(), Drawing.WorldToScreen(enemyProj.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
-                }
-
-                foreach (Creep creep in allyCreeps)
-                {
-                    if (creep.IsAlive && creep.IsVisible)
+                    foreach (Projectile allyProj in allyMinionProjs)
                     {
-                        //Drawing.DrawText("This creep is: " + creep.ClassID + " - " + creep.IsRanged, Drawing.WorldToScreen(creep.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
+                        Drawing.DrawText("Proj speed is: " + allyProj.Speed.ToString(), Drawing.WorldToScreen(allyProj.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                     }
                 }
 
-                foreach (Creep creep in enemyCreeps)
+                if (enemMinionProjs.Any())
                 {
-                    if (creep.IsAlive && creep.IsVisible)
+                    foreach (Projectile enemyProj in enemMinionProjs)
                     {
-                        //Drawing.DrawText("This creep is: " + creep.ClassID + " - " + creep.IsRanged, Drawing.WorldToScreen(creep.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
+                        Drawing.DrawText("Proj speed is: " + enemyProj.Speed.ToString(), Drawing.WorldToScreen(enemyProj.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
                     }
                 }
+
+            
 
                 if (tminion != null)
                 {
@@ -438,6 +416,7 @@ namespace PippyLastHit
                     Drawing.DrawText("My AA damage on creep: " + GetPhysDamageOnUnit(tminion), new Vector2(Drawing.WorldToScreen(tminion.Position).X, Drawing.WorldToScreen(tminion.Position).Y - 20),
                         Color.LightCoral, FontFlags.AntiAlias & FontFlags.DropShadow);
                 }
+                */
             }
         }
 
@@ -471,6 +450,10 @@ namespace PippyLastHit
             else if (creep.ClassID == ClassID.CDOTA_BaseNPC_Creep_Siege)
             {
                 return 1100f;
+            }
+            else if (creep.ClassID == ClassID.CDOTA_BaseNPC_Tower)
+            {
+                return 900f;
             }
 
             return float.PositiveInfinity;
