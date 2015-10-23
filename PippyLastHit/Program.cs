@@ -43,6 +43,10 @@ namespace PippyLastHit
 
         private static float predDamage;
 
+        private static double myProjSpeed;
+        private static double myAttackPoint;
+        private static double myTurnTimeToTarget;
+
 
         static void Main(string[] args)
         {
@@ -155,7 +159,12 @@ namespace PippyLastHit
 
             if (tminion != null)
             {
-                var timeToCheck = UnitDatabase.GetAttackPoint(meLulz) * 1000 - 150 + Game.Ping / 2  + meLulz.GetTurnTime(tminion) * 1000 + Math.Max(0, meLulz.Distance2D(tminion)) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
+
+                myAttackPoint = UnitDatabase.GetAttackPoint(meLulz);
+                myTurnTimeToTarget = meLulz.GetTurnTime(tminion);
+                myProjSpeed = UnitDatabase.GetProjectileSpeed(meLulz);
+
+                var timeToCheck = myAttackPoint * 1000 - 150 + Game.Ping / 2  + myTurnTimeToTarget * 1000 + Math.Max(0, meLulz.Distance2D(tminion)) / myProjSpeed * 1000;
 
                 testValue = (float)timeToCheck;
 
@@ -201,7 +210,7 @@ namespace PippyLastHit
             allyCreeps = ObjectMgr.GetEntities<Creep>().Where(creepMinion => creepMinion.Team == meLulz.Team).ToList();
             enemyCreeps = ObjectMgr.GetEntities<Creep>().Where(creepMinion => creepMinion.Team == meLulz.GetEnemyTeam()).ToList();
 
-            if (creep.Team != meLulz.Team) //Enemy Creep
+            if (creep.Team == meLulz.GetEnemyTeam()) //Enemy Creep
             {
                 var TotalMinionDMG = 0f;
                 var maxTimeCheck = Environment.TickCount + timeToCheck;
@@ -303,17 +312,6 @@ namespace PippyLastHit
             }
 
             return 0f;
-        }
-
-
-        private static float ProjSpeedTicks(Hero hero, Unit target)
-        {
-            var _distance = hero.Distance2D(target) - hero.HullRadius;
-            var _speed = UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed;
-
-            return _distance / _speed;
-
-            //Not yet used
         }
 
         private static void LHDrawing(EventArgs args)
