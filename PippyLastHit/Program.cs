@@ -73,9 +73,6 @@ namespace PippyLastHit
             }
             else
             {
-                gameLoad = false;
-                onLoad = false;
-
                 meLulz = null;
                 tminion = null;
 
@@ -84,6 +81,9 @@ namespace PippyLastHit
 
                 allyMinionProjs = null;
                 enemMinionProjs = null;
+
+                onLoad = false;
+                gameLoad = false;
             }
 
             if (gameLoad && !onLoad)
@@ -155,7 +155,7 @@ namespace PippyLastHit
 
             if (tminion != null)
             {
-                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + Game.Ping / 2 + meLulz.GetTurnTime(tminion) * 1000 + Math.Max(0, meLulz.Distance2D(tminion)) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000 - 100;
+                var timeToCheck = UnitDatabase.GetAttackPoint(meLulz) * 1000 - 150 + Game.Ping / 2  + meLulz.GetTurnTime(tminion) * 1000 + Math.Max(0, meLulz.Distance2D(tminion)) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
 
                 testValue = (float)timeToCheck;
 
@@ -237,7 +237,7 @@ namespace PippyLastHit
 
                         if (alCreep.IsAlive && alCreep.IsMelee && alCreep.Distance2D(creep) <= alCreep.AttackRange && alCreep.IsAttacking())
                         {
-                            if (MinionAAData.GetAttackBackswing(alCreep) < maxTimeCheck)
+                            if (MinionAAData.GetAttackPoint(alCreep) < maxTimeCheck)
                             {
                                 minionDMG = GetPhysDamageOnUnit(alCreep, creep);
                             }
@@ -287,7 +287,7 @@ namespace PippyLastHit
 
                         if (enCreep.IsAlive && enCreep.IsMelee && enCreep.Distance2D(creep) <= enCreep.AttackRange && enCreep.IsAttacking())
                         {
-                            if (MinionAAData.GetAttackBackswing(enCreep) < maxTimeCheck)
+                            if (MinionAAData.GetAttackPoint(enCreep) < maxTimeCheck)
                             {
                                 minionDMG = GetPhysDamageOnUnit(enCreep, creep);
                             }
@@ -300,64 +300,6 @@ namespace PippyLastHit
                 TotalMinionDMG = rangedDamage + meleeDamage;
 
                 return Math.Max(0, creep.Health - TotalMinionDMG);
-            }
-
-            return 0f;
-        }
-
-        private static float PredictedDamageMelee(Creep creep, float timeToCheck = 1500f)
-        {
-            //Melee creep Logic
-
-            var maxTimeCheck = Environment.TickCount + timeToCheck;
-
-            if (enemyCreeps.Any())
-            {
-                var totalMinionDMG = 0f;
-
-                if (creep.Team == meLulz.Team)
-                {
-                    foreach (var enCreep in enemyCreeps)
-                    {
-                        var minionDMG = 0f;
-
-                        if (enCreep.IsAlive && enCreep.IsMelee && enCreep.IsAttacking())
-                        {
-                            if (enCreep.Distance2D(creep) <= enCreep.AttackRange)
-                            {
-                                if (MinionAAData.GetAttackBackswing(enCreep) < maxTimeCheck)
-                                {
-                                    minionDMG = GetPhysDamageOnUnit(enCreep, creep);
-                                }
-                            }
-                        }
-
-                        totalMinionDMG += minionDMG;
-                    }
-                }
-            }
-
-            if (allyCreeps.Any())
-            {
-                var totalMinionDMG = 0f;
-
-                if (creep.Team == meLulz.GetEnemyTeam())
-                {
-                    foreach (var alCreep in allyCreeps)
-                    {
-                        var minionDMG = 0f;
-
-                        if (alCreep.IsAlive && alCreep.IsMelee && alCreep.IsAttacking())
-                        {
-                            if (MinionAAData.GetAttackBackswing(alCreep) < maxTimeCheck)
-                            {
-                                minionDMG = GetPhysDamageOnUnit(alCreep, creep);
-                            }
-                        }
-
-                        totalMinionDMG += minionDMG;
-                    }
-                }
             }
 
             return 0f;

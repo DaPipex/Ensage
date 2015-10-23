@@ -51,6 +51,7 @@ namespace PippyShadowFiend
             else
             {
                 SF = null;
+                ComboKey = null;
                 gameLoad = false;
                 loadOnce = false;
             }
