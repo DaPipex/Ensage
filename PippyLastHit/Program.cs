@@ -76,6 +76,9 @@ namespace PippyLastHit
                 gameLoad = false;
                 onLoad = false;
 
+                meLulz = null;
+                tminion = null;
+
                 lastHitHold = null;
                 lastHitToggle = null;
 
@@ -152,7 +155,7 @@ namespace PippyLastHit
 
             if (tminion != null)
             {
-                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + (Game.Ping > 125 ? (Game.Ping / 2 + 60) : Game.Ping / 2) + meLulz.GetTurnTime(tminion) * 1000 + Math.Max(0, meLulz.Distance2D(tminion)) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000;
+                var timeToCheck = UnitDatabase.GetAttackBackswing(meLulz) * 1000 + Game.Ping / 2 + meLulz.GetTurnTime(tminion) * 1000 + Math.Max(0, meLulz.Distance2D(tminion)) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000 - 100;
 
                 testValue = (float)timeToCheck;
 
@@ -380,6 +383,12 @@ namespace PippyLastHit
 
                 Drawing.DrawText("Last hitting is: " + ((lastHitHold.IsActive || lastHitToggle.IsActive) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), (lastHitHold.IsActive || lastHitToggle.IsActive) ? Color.LightGreen : Color.Red,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
+
+                //PippyDrawCircle(meLulz.Position.X, meLulz.Position.Y, meLulz.Position.Z, meLulz.GetAttackRange(), 69, Color.Red);
+
+                //Drawing.DrawText(string.Format("X: {0} - Y: {1} - Z: {2}", meLulz.Position.X, meLulz.Position.Y, meLulz.Position.Z), Drawing.WorldToScreen(meLulz.Position), Color.White, FontFlags.AntiAlias & FontFlags.DropShadow);
+                //Drawing.DrawLine(Drawing.WorldToScreen(meLulz.Position), Game.MouseScreenPosition, Color.Red);
+                //Drawing.DrawText("MyDistance / MyProjSpeed: " + (tminion != null ? (meLulz.Distance2D(tminion) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000) : 0), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
                 /*
                 Drawing.DrawText("My hero's projectile speed is: " + UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed.ToString(), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen,
                     FontFlags.AntiAlias & FontFlags.DropShadow);
@@ -423,26 +432,44 @@ namespace PippyLastHit
             }
         }
 
-        /*private static void PippyDrawCircle(double x, double y, double z, double radius = 550f, double width = 1, Color? color = null)
+        /*
+        private static void PippyDrawCircle(float x, float y, float z, float radius = 550f, float width = 1, Color? color = null)
         {
-            var CColor = (color == null) ? Color.White : color;
-            var heroPosGame = new Vector3((float)x, (float)y, (float)z);
-            var screenPos = Drawing.WorldToScreen(heroPosGame);
+            var Radius = radius;
+            var OrigPos = new Vector3(x, y, z);
+            var CameraPos = Drawing.ScreenToWorld(Drawing.Width / 2, Drawing.Height / 2);
+            var Normalized = Vector3.Normalize(OrigPos - CameraPos);
+            var RealVector = OrigPos - Normalized * Radius;
+            var Pos = Drawing.WorldToScreen(RealVector);
+            var Width = width; //DrawLine still doesnt have this :(
+            var ColorC = color != null ? color : Color.White;
 
-            var quality = Math.Max(8, (180 / MathUtil.RadiansToDegrees((float)(Math.Asin((100 / (2 * radius)))))));
-            quality = (float)(2 * Math.PI / quality);
-            radius = radius * .92;
+            var fid = Math.Max(8, (180 / MathUtil.RadiansToDegrees((float)(Math.Asin((100 / (2 * Radius)))))));
+            var fid2 = Math.PI * 2 / fid;
 
-            List<Vector2> points = new List<Vector2>();
+            Console.WriteLine(fid2);
 
-            for (double theta = 0; theta < 2 * Math.PI + quality; theta += quality)
+            var CirclePoints = new List<Vector2>();
+
+            for (var theta = 0d; theta < Math.PI * 2 + fid2; theta += fid2)
             {
-                var cPoint = Drawing.WorldToScreen(new Vector3((float)(x + radius * Math.Cos(theta)), (float)y, (float)(z - radius * Math.Sin(theta))));
-                points[points.Count + 1] = (Point)new Vector2(cPoint.X, cPoint.Y);
+                var point = Drawing.WorldToScreen(new Vector3(x + (float)(Radius * Math.Cos(theta)), y, z - (float)(Radius * Math.Sin(theta))));
+                CirclePoints.Add(point);
             }
 
-            pippyLine.Draw(points.ToArray(), (ColorBGRA)CColor);
-        }*/
+            
+            for (var i = 0; CirclePoints.Count - 1 > i; i++)
+            {
+                Drawing.DrawLine(CirclePoints[i], CirclePoints[i + 1], (Color)ColorC);
+            }
+            
+
+            for (var i = 0; i > 5; i++)
+            {
+                Drawing.DrawText("Point here", CirclePoints[i], Color.Red, FontFlags.AntiAlias & FontFlags.DropShadow);
+            }
+        }
+        */
 
         private static float MinionProjSpeed(Creep creep)
         {
