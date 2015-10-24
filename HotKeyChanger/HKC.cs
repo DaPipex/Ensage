@@ -53,23 +53,9 @@ namespace HotKeyChanger
             keyToggleT = 0;
 
             //Event subs
+            Game.OnUpdate += HKC_Update;
             Game.OnWndProc += HKC_WndProc;
             Drawing.OnDraw += HKC_Draw;
-            Game.OnUpdate += HKC_Update;
-        }
-
-        private void HKC_Draw(EventArgs args)
-        {
-            if (_gameLoad)
-            {
-                Drawing.DrawRect(BoxPosition, new Vector2(15, 15), BoxColor, false);
-                Drawing.DrawText(DisplayText + " [" + KeyToChar(Key) + "]", new Vector2(BoxPosition.X + 20, BoxPosition.Y), BoxColor, FontFlags.AntiAlias & FontFlags.DropShadow);
-
-                if (_choosingKey)
-                {
-                    Drawing.DrawText("Press a new key for this bind!", new Vector2(Drawing.Width / 2, Drawing.Height / 2), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
-                }
-            }
         }
 
         private void HKC_Update(EventArgs args)
@@ -80,7 +66,7 @@ namespace HotKeyChanger
             }
             else
             {
-                Key = OrigKey;
+
             }
 
             if (_gameLoad)
@@ -97,6 +83,20 @@ namespace HotKeyChanger
             }
 
             //Console.WriteLine("Key " + KeyToChar(Key) + " is: " + IsActive);
+        }
+
+        private void HKC_Draw(EventArgs args)
+        {
+            if (_gameLoad)
+            {
+                Drawing.DrawRect(BoxPosition, new Vector2(15, 15), BoxColor, false);
+                Drawing.DrawText(DisplayText + " [" + KeyToChar(Key) + "]", new Vector2(BoxPosition.X + 20, BoxPosition.Y), BoxColor, FontFlags.AntiAlias & FontFlags.DropShadow);
+
+                if (_choosingKey)
+                {
+                    Drawing.DrawText("Press a new key for this bind!", new Vector2(Drawing.Width / 2, Drawing.Height / 2), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
+                }
+            }
         }
 
         private void HKC_WndProc(WndEventArgs args)
@@ -149,6 +149,14 @@ namespace HotKeyChanger
             if (key == 32)
             {
                 return "SPACE";
+            }
+            if (key == 107)
+            {
+                return "NUMPAD +";
+            }
+            if (key == 109)
+            {
+                return "NUMPAD -";
             }
 
             return key.ToString();

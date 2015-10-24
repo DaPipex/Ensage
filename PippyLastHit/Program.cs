@@ -15,418 +15,271 @@ namespace PippyLastHit
 {
     class Program
     {
-
-        private static Hero meLulz;
-
-        private static Creep tminion;
+        private static Hero me;
 
         private static bool gameLoad;
-
-        //private static bool lastHittingHold;
-        //private static bool lastHittingToggle;
-
-        private static int _lastToggleT;
-        private static int _lastMoveT;
-
-        private static float testValue;
-
         private static bool onLoad;
 
-        private static HKC lastHitHold;
-        private static HKC lastHitToggle;
+        private static HKC LHHold;
+        private static HKC LHToggle;
+        private static HKC DNToggle;
+        private static HKC moreTime;
+        private static HKC lessTime;
 
-        private static List<Projectile> allyMinionProjs = new List<Projectile>();
-        private static List<Projectile> enemMinionProjs = new List<Projectile>();
+        private static Vector2 LHHDrawPos;
+        private static Vector2 LHTDrawPos;
+        private static Vector2 DNTDrawPos;
+        private static Vector2 LHStatusDrawPos;
+        private static Vector2 DNStatusDrawPos;
+        private static Vector2 moreTimeDrawPos;
+        private static Vector2 lessTimeDrawPos;
+        private static Vector2 customTimeDrawPos;
 
-        private static List<Creep> allyCreeps = new List<Creep>();
-        private static List<Creep> enemyCreeps = new List<Creep>();
+        private static int CustomWaitTime = 150;
 
-        private static float predDamage;
+        private const FontFlags HQ = FontFlags.AntiAlias & FontFlags.DropShadow;
 
-        private static double myProjSpeed;
-        private static double myAttackPoint;
-        private static double myTurnTimeToTarget;
-
+        private static int lastMoveT;
 
         static void Main(string[] args)
         {
             gameLoad = false;
-            //lastHittingHold = false;
-            //lastHittingToggle = false;
-            _lastToggleT = 0;
-            testValue = 0f;
             onLoad = false;
 
             //Events
             Game.OnUpdate += LHUpdate;
-            Drawing.OnDraw += LHDrawing;
-            //Game.OnWndProc += LHWndProc;
-            //Game.OnProcessSpell += LHProcSpell;
+            Game.OnIngameUpdate += LHIngameUpdate;
+            Drawing.OnDraw += LHDraw;
         }
 
         private static void LHUpdate(EventArgs args)
         {
-            if (Game.IsInGame && !Game.IsPaused)
+            if (!Game.IsInGame)  //Menu
             {
-                gameLoad = true;
-                meLulz = ObjectMgr.LocalHero;
+                LHHold = null;
+                LHToggle = null;
+                DNToggle = null;
+                moreTime = null;
+                lessTime = null;
 
-                tminion = ObjectMgr.GetEntities<Creep>()
-                .Where(creep => creep.IsAlive && meLulz.Distance2D(creep) <= meLulz.GetAttackRange())
-                .OrderBy(creep => creep.Health).DefaultIfEmpty(null).FirstOrDefault();
-            }
-            else
-            {
-                meLulz = null;
-                tminion = null;
-
-                lastHitHold = null;
-                lastHitToggle = null;
-
-                allyMinionProjs = null;
-                enemMinionProjs = null;
-
-                onLoad = false;
                 gameLoad = false;
+                onLoad = false;
             }
+        }
 
-            if (gameLoad && !onLoad)
+        private static void LHIngameUpdate(EventArgs args)
+        {
+            if (!onLoad)
             {
-                lastHitHold = new HKC("lasthithold", "Last Hit Hold", 65, HKC.KeyMode.HOLD, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 50), Color.LightGreen);
-                lastHitToggle = new HKC("lasthittoggle", "Last Hit Toggle", 84, HKC.KeyMode.TOGGLE, new Vector2((Drawing.Width * 5 / 100) + 20, (Drawing.Height * 10 / 100) - 30), Color.LightGreen);
+                LHHDrawPos = new Vector2(Drawing.Width * 5 / 100, Drawing.Height * 10 / 100);
+                LHTDrawPos = new Vector2(Drawing.Width * 5 / 100, Drawing.Height * 12 / 100);
+                DNTDrawPos = new Vector2(Drawing.Width * 5 / 100, Drawing.Height * 14 / 100);
+                LHStatusDrawPos = new Vector2(Drawing.Width * 7 / 100, Drawing.Height * 18 / 100);
+                DNStatusDrawPos = new Vector2(Drawing.Width * 7 / 100, Drawing.Height * 20 / 100);
+                moreTimeDrawPos = new Vector2(Drawing.Width * 15 / 100, Drawing.Height * 10 / 100);
+                lessTimeDrawPos = new Vector2(Drawing.Width * 15 / 100, Drawing.Height * 12 / 100);
+                customTimeDrawPos = new Vector2(Drawing.Width * 17 / 100, Drawing.Height * 14 / 100);
+
+                LHHold = new HKC("LHH", "Last Hit Hold", 65, HKC.KeyMode.HOLD, LHHDrawPos, Color.LightGreen);
+                LHToggle = new HKC("LHT", "Last Hit Toggle", 84, HKC.KeyMode.TOGGLE, LHTDrawPos, Color.LightGreen);
+                DNToggle = new HKC("DNT", "Deny Toggle", 75, HKC.KeyMode.TOGGLE, DNTDrawPos, Color.Cyan);
+                moreTime = new HKC("moreTime", "Add delay", 107, HKC.KeyMode.HOLD, moreTimeDrawPos, Color.LightGreen);
+                lessTime = new HKC("lessTime", "Remove delay", 109, HKC.KeyMode.HOLD, lessTimeDrawPos, Color.LightGreen);
+
+                me = ObjectMgr.LocalHero;
+
                 onLoad = true;
             }
 
-            if (gameLoad && (lastHitHold.IsActive || lastHitToggle.IsActive))
+            if (moreTime.IsActive && Utils.SleepCheck("moreTimeCheck"))
             {
-                LastHit();
+                CustomWaitTime += 50;
+                Utils.Sleep(250, "moreTimeCheck");
+            }
+            if (lessTime.IsActive && Utils.SleepCheck("lessTimeCheck"))
+            {
+                CustomWaitTime -= 50;
+                Utils.Sleep(250, "lessTimeCheck");
+            }
+
+            if (CustomWaitTime < -200)
+            {
+                CustomWaitTime = -200;
+            }
+            if (CustomWaitTime > 500)
+            {
+                CustomWaitTime = 500;
+            }
+
+            if (LHHold.IsActive || LHToggle.IsActive)
+            {
+                LastHit(DNToggle.IsActive);
             }
         }
 
-        private static float GetPhysDamageOnUnit(Unit unit)
+        private static void LHDraw(EventArgs args)
         {
-            var PhysDamage = meLulz.MinimumDamage + meLulz.BonusDamage;
+            if (Game.IsInGame && !Game.IsPaused && !Game.IsWatchingGame && me != null)
+            {
+                Drawing.DrawText("Last hitting is: " + ((LHHold.IsActive || LHToggle.IsActive) ? "ENABLED" : "DISABLED"), LHStatusDrawPos,
+                    ((LHHold.IsActive || LHToggle.IsActive) ? Color.LightGreen : Color.LightYellow), HQ);
 
-            var _damageMP = 1 - 0.06 * unit.Armor / (1 + 0.06 * Math.Abs(unit.Armor));
+                Drawing.DrawText("Denying " + ((DNToggle.IsActive) ? "IS" : "IS NOT") + " included in last hit", DNStatusDrawPos,
+                    ((DNToggle.IsActive) ? Color.Cyan : Color.LightYellow), HQ);
 
-            var realDamage = PhysDamage * _damageMP;
-
-
-
-            return (float)realDamage;
+                Drawing.DrawText("Current Last Hit/Deny Delay: " + CustomWaitTime, customTimeDrawPos, Color.OrangeRed, HQ);
+            }
         }
 
-        private static float GetPhysDamageOnUnit(Unit source, Unit target)
+        private static float GetPhysDamage(Unit source, Unit target)
         {
             var PhysDamage = source.MinimumDamage + source.BonusDamage;
 
             var _damageMP = 1 - 0.06 * target.Armor / (1 + 0.06 * Math.Abs(target.Armor));
 
-            var realDamage = PhysDamage * _damageMP;
-
-            return (float)realDamage;
+            return (float)(PhysDamage * _damageMP);
         }
 
-        /*
-        private static void LHWndProc(WndEventArgs args)
+        private static float GetPhysDamage(Unit target)
         {
-            if (gameLoad)
-            {
-                if (args.Msg == (ulong)Utils.WindowsMessages.WM_KEYDOWN && args.WParam == 65 && !Game.IsChatOpen)
-                {
-                    lastHittingHold = true;
-                }
-                else if (args.Msg == (ulong)Utils.WindowsMessages.WM_KEYUP && args.WParam == 65 && !Game.IsChatOpen)
-                {
-                    lastHittingHold = false;
-                }
-
-
-
-                if (args.Msg == (ulong)Utils.WindowsMessages.WM_KEYDOWN && args.WParam == 84 && !Game.IsChatOpen && _lastToggleT + 1000 < Environment.TickCount)
-                {
-                    _lastToggleT = Environment.TickCount;
-
-                    lastHittingToggle = !lastHittingToggle;
-                }
-            }
-
+            return GetPhysDamage(me, target);
         }
-        */
 
-        private static void LastHit()
+        private static void LastHit(bool deny)
         {
+            var PossibleMinion = (deny) ? (ObjectMgr.GetEntities<Creep>()
+                .Where(creep => creep.IsAlive && creep.IsValid && me.Distance2D(creep) < me.GetAttackRange()).OrderBy(creep => creep.Health).DefaultIfEmpty(null).FirstOrDefault()) :
+                (ObjectMgr.GetEntities<Creep>()
+                .Where(creep => creep.IsAlive && creep.IsValid && creep.Team == me.GetEnemyTeam() && me.Distance2D(creep) < me.GetAttackRange()).OrderBy(creep => creep.Health).DefaultIfEmpty(null).FirstOrDefault());
 
-            if (tminion != null)
+            if (PossibleMinion != null)
             {
+                var CheckTime = UnitDatabase.GetAttackPoint(me) * 1000 - CustomWaitTime + Game.Ping + me.GetTurnTime(PossibleMinion) * 1000 + Math.Max(0,
+                    me.Distance2D(PossibleMinion) / UnitDatabase.GetProjectileSpeed(me) * 1000);
 
-                myAttackPoint = UnitDatabase.GetAttackPoint(meLulz);
-                myTurnTimeToTarget = meLulz.GetTurnTime(tminion);
-                myProjSpeed = UnitDatabase.GetProjectileSpeed(meLulz);
+                var predHealth = PredictedHealth(PossibleMinion, (int)CheckTime);
 
-                var timeToCheck = myAttackPoint * 1000 - 150 + Game.Ping / 2  + myTurnTimeToTarget * 1000 + Math.Max(0, meLulz.Distance2D(tminion)) / myProjSpeed * 1000;
-
-                testValue = (float)timeToCheck;
-
-                var predictedHealth = PredictedDamage(tminion, (float)timeToCheck);
-
-                predDamage = predictedHealth;
-
-                if (predictedHealth > 0 && predictedHealth < GetPhysDamageOnUnit(tminion))
+                if (predHealth > 0 && predHealth <= GetPhysDamage(PossibleMinion))
                 {
-                    if (!meLulz.IsAttacking())
+                    if (me.CanAttack())
                     {
-                        meLulz.Attack(tminion);
+                        me.Attack(PossibleMinion);
                     }
                 }
                 else
                 {
-                    if (lastHitHold.IsActive && _lastMoveT + 80 < Environment.TickCount)
+                    if (LHHold.IsActive && lastMoveT + 80 < Environment.TickCount)
                     {
-                        _lastMoveT = Environment.TickCount;
-                        meLulz.Move(Game.MousePosition);
+                        lastMoveT = Environment.TickCount;
+                        me.Move(Game.MousePosition);
                     }
                 }
             }
             else
             {
-                if (lastHitHold.IsActive && _lastMoveT + 80 < Environment.TickCount)
+                if (LHHold.IsActive && lastMoveT + 80 < Environment.TickCount)
                 {
-                    _lastMoveT = Environment.TickCount;
-                    meLulz.Move(Game.MousePosition);
+                    lastMoveT = Environment.TickCount;
+                    me.Move(Game.MousePosition);
                 }
             }
         }
 
-        private static float PredictedDamage(Creep creep, float timeToCheck = 1500f)
+        private static float PredictedHealth(Unit unit, int time)
         {
+            var allyMinions = ObjectMgr.GetEntities<Creep>().Where(creep => creep.IsAlive && creep.IsValid && creep.Team == me.Team && creep.IsMelee).ToList();
+            var enemMinions = ObjectMgr.GetEntities<Creep>().Where(creep => creep.IsAlive && creep.IsValid && creep.Team == me.GetEnemyTeam() && creep.IsMelee).ToList();
 
-            allyMinionProjs = ObjectMgr.Projectiles.ToList().Where(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
-            proj.Source.Team == meLulz.Team).ToList();
+            var allyMinionProjectiles = ObjectMgr.Projectiles.Where(proj => proj.Source is Creep && proj.Source.Team == me.Team).ToList();
+            var enemyMinionProjectiles = ObjectMgr.Projectiles.Where(proj => proj.Source is Creep && proj.Source.Team == me.GetEnemyTeam()).ToList();
 
-            enemMinionProjs = ObjectMgr.Projectiles.ToList().Where(proj => proj != null && proj.Source is Creep && proj.Target is Creep &&
-            proj.Source.Team == meLulz.GetEnemyTeam()).ToList();
+            var MaxTime = Environment.TickCount + time;
 
-            allyCreeps = ObjectMgr.GetEntities<Creep>().Where(creepMinion => creepMinion.Team == meLulz.Team).ToList();
-            enemyCreeps = ObjectMgr.GetEntities<Creep>().Where(creepMinion => creepMinion.Team == meLulz.GetEnemyTeam()).ToList();
-
-            if (creep.Team == meLulz.GetEnemyTeam()) //Enemy Creep
+            if (unit.Team == me.GetEnemyTeam())
             {
-                var TotalMinionDMG = 0f;
-                var maxTimeCheck = Environment.TickCount + timeToCheck;
-
                 var rangedDamage = 0f;
                 var meleeDamage = 0f;
 
-                if (allyMinionProjs.Any())
+                foreach (var proj in allyMinionProjectiles)
                 {
-                    foreach (var allyProj in allyMinionProjs)
+                    var projDamage = 0f;
+
+                    if (proj.Target == unit)
                     {
-                        var MinionDMG = 0d;
+                        var arrivalTime = Environment.TickCount + proj.Distance2D(unit) / proj.Speed;
 
-                        if (allyProj.Target == creep)
+                        if (arrivalTime < MaxTime)
                         {
-                            var projArrivalTime = Environment.TickCount + (allyProj.Position.Distance2D(allyProj.Target.Position) / MinionProjSpeed(allyProj.Source as Creep));
-                            if (projArrivalTime < maxTimeCheck)
-                            {
-                                MinionDMG = GetPhysDamageOnUnit((Unit)allyProj.Source, (Unit)allyProj.Target);
-                            }
+                            projDamage = GetPhysDamage(proj.Source as Creep, unit);
                         }
-
-                        rangedDamage += (float)MinionDMG;
                     }
 
+                    rangedDamage += projDamage;
                 }
 
-                if (allyCreeps.Any())
+                foreach (var creep in allyMinions)
                 {
-                    foreach (var alCreep in allyCreeps)
+                    var hitDamage = 0f;
+
+                    if (creep.Distance2D(unit) <= creep.AttackRange && creep.NetworkActivity == NetworkActivity.AttackEvent)
                     {
-                        var minionDMG = 0f;
+                        var arrivalTime = Environment.TickCount + MinionAAData.GetAttackPoint(creep);
 
-                        if (alCreep.IsAlive && alCreep.IsMelee && alCreep.Distance2D(creep) <= alCreep.AttackRange && alCreep.IsAttacking())
+                        if (arrivalTime < MaxTime)
                         {
-                            if (MinionAAData.GetAttackPoint(alCreep) < maxTimeCheck)
-                            {
-                                minionDMG = GetPhysDamageOnUnit(alCreep, creep);
-                            }
+                            hitDamage = GetPhysDamage(creep, unit);
                         }
-
-                        meleeDamage += minionDMG;
                     }
+
+                    meleeDamage += hitDamage;
                 }
 
-                TotalMinionDMG = rangedDamage + meleeDamage;
-
-                return Math.Max(0, creep.Health - TotalMinionDMG);
+                return Math.Max(0, unit.Health - (rangedDamage + meleeDamage));
             }
 
-            if (creep.Team == meLulz.Team) //Ally Team
+            if (unit.Team == me.Team)
             {
-                var TotalMinionDMG = 0f;
-                var maxTimeCheck = Environment.TickCount + timeToCheck;
-
                 var rangedDamage = 0f;
                 var meleeDamage = 0f;
 
-                if (enemMinionProjs.Any())
+                foreach (var proj in enemyMinionProjectiles)
                 {
-                    foreach (var enemyProj in enemMinionProjs)
-                    {
-                        var MinionDMG = 0d;
+                    var projDamage = 0f;
 
-                        if (enemyProj.Target == creep)
+                    if (proj.Target == unit)
+                    {
+                        var arrivalTime = Environment.TickCount + proj.Distance2D(unit) / proj.Speed;
+
+                        if (arrivalTime < MaxTime)
                         {
-                            var projArrivalTime = Environment.TickCount + (enemyProj.Position.Distance2D(enemyProj.Target.Position) / MinionProjSpeed(enemyProj.Source as Creep));
-                            if (projArrivalTime < maxTimeCheck)
-                            {
-                                MinionDMG = GetPhysDamageOnUnit((Unit)enemyProj.Source, (Unit)enemyProj.Target);
-                            }
+                            projDamage = GetPhysDamage(proj.Source as Creep, unit);
                         }
-
-                        rangedDamage += (float)MinionDMG;
                     }
+
+                    rangedDamage += projDamage;
                 }
 
-                if (enemyCreeps.Any())
+                foreach (var creep in enemMinions)
                 {
-                    foreach (var enCreep in enemyCreeps)
-                    {
-                        var minionDMG = 0f;
+                    var hitDamage = 0f;
 
-                        if (enCreep.IsAlive && enCreep.IsMelee && enCreep.Distance2D(creep) <= enCreep.AttackRange && enCreep.IsAttacking())
+                    if (creep.Distance2D(unit) <= creep.AttackRange && creep.NetworkActivity == NetworkActivity.AttackEvent)
+                    {
+                        var arrivalTime = Environment.TickCount + MinionAAData.GetAttackPoint(creep);
+
+                        if (arrivalTime < MaxTime)
                         {
-                            if (MinionAAData.GetAttackPoint(enCreep) < maxTimeCheck)
-                            {
-                                minionDMG = GetPhysDamageOnUnit(enCreep, creep);
-                            }
+                            hitDamage = GetPhysDamage(creep, unit);
                         }
-
-                        meleeDamage += minionDMG;
                     }
+
+                    meleeDamage += hitDamage;
                 }
 
-                TotalMinionDMG = rangedDamage + meleeDamage;
-
-                return Math.Max(0, creep.Health - TotalMinionDMG);
+                return Math.Max(0, unit.Health - (rangedDamage + meleeDamage));
             }
 
-            return 0f;
-        }
-
-        private static void LHDrawing(EventArgs args)
-        {
-            if (gameLoad)
-            {
-                float fixedWidth = Drawing.Width * 5 / 100;
-                float fixedHeight = Drawing.Height * 10 / 100;
-
-                Drawing.DrawText("Last hitting is: " + ((lastHitHold.IsActive || lastHitToggle.IsActive) ? "enabled" : "disabled"), new Vector2(fixedWidth, fixedHeight), (lastHitHold.IsActive || lastHitToggle.IsActive) ? Color.LightGreen : Color.Red,
-                    FontFlags.AntiAlias & FontFlags.DropShadow);
-
-                //PippyDrawCircle(meLulz.Position.X, meLulz.Position.Y, meLulz.Position.Z, meLulz.GetAttackRange(), 69, Color.Red);
-
-                //Drawing.DrawText(string.Format("X: {0} - Y: {1} - Z: {2}", meLulz.Position.X, meLulz.Position.Y, meLulz.Position.Z), Drawing.WorldToScreen(meLulz.Position), Color.White, FontFlags.AntiAlias & FontFlags.DropShadow);
-                //Drawing.DrawLine(Drawing.WorldToScreen(meLulz.Position), Game.MouseScreenPosition, Color.Red);
-                //Drawing.DrawText("MyDistance / MyProjSpeed: " + (tminion != null ? (meLulz.Distance2D(tminion) / UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed * 1000) : 0), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                /*
-                Drawing.DrawText("My hero's projectile speed is: " + UnitDatabase.GetByName(meLulz.Name).ProjectileSpeed.ToString(), new Vector2(fixedWidth, fixedHeight + 20), Color.LightGreen,
-                    FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("My hero's name is: " + meLulz.Name.ToLowerInvariant(), new Vector2(fixedWidth, fixedHeight + 40), Color.LightGreen,
-                    FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("My ping is: " + Game.Ping, new Vector2(fixedWidth, fixedHeight + 60), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("Time to arrive: " + ((testValue != float.NaN) ? testValue : 0), new Vector2(fixedWidth, fixedHeight + 80), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("My backswing " + UnitDatabase.GetAttackBackswing(meLulz), new Vector2(fixedWidth, fixedHeight + 100), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("My Turntime to minion: " + (tminion != null ? meLulz.GetTurnTime(tminion).ToString() : 0.ToString()), new Vector2(fixedWidth, fixedHeight + 120), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("My ProjTick: " + (tminion != null ? ProjSpeedTicks(meLulz, tminion).ToString() : 0.ToString()), new Vector2(fixedWidth, fixedHeight + 140), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                Drawing.DrawText("Pred Damage: " + (tminion != null ? predDamage : 0), new Vector2(fixedWidth, fixedHeight + 160), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                
-
-                if (allyMinionProjs.Any())
-                {
-                    foreach (Projectile allyProj in allyMinionProjs)
-                    {
-                        Drawing.DrawText("Proj speed is: " + allyProj.Speed.ToString(), Drawing.WorldToScreen(allyProj.Position), Color.LightGreen, FontFlags.AntiAlias & FontFlags.DropShadow);
-                    }
-                }
-
-                if (enemMinionProjs.Any())
-                {
-                    foreach (Projectile enemyProj in enemMinionProjs)
-                    {
-                        Drawing.DrawText("Proj speed is: " + enemyProj.Speed.ToString(), Drawing.WorldToScreen(enemyProj.Position), Color.Orange, FontFlags.AntiAlias & FontFlags.DropShadow);
-                    }
-                }
-
-            
-
-                if (tminion != null)
-                {
-                    Drawing.DrawText(string.Format("This minion HP: {0} - Pred Damage: {1}",
-                        tminion.Health, predDamage), Drawing.WorldToScreen(tminion.Position), Color.LightPink,
-                        FontFlags.AntiAlias & FontFlags.DropShadow);
-                    Drawing.DrawText("My AA damage on creep: " + GetPhysDamageOnUnit(tminion), new Vector2(Drawing.WorldToScreen(tminion.Position).X, Drawing.WorldToScreen(tminion.Position).Y - 20),
-                        Color.LightCoral, FontFlags.AntiAlias & FontFlags.DropShadow);
-                }
-                */
-            }
-        }
-
-        /*
-        private static void PippyDrawCircle(float x, float y, float z, float radius = 550f, float width = 1, Color? color = null)
-        {
-            var Radius = radius;
-            var OrigPos = new Vector3(x, y, z);
-            var CameraPos = Drawing.ScreenToWorld(Drawing.Width / 2, Drawing.Height / 2);
-            var Normalized = Vector3.Normalize(OrigPos - CameraPos);
-            var RealVector = OrigPos - Normalized * Radius;
-            var Pos = Drawing.WorldToScreen(RealVector);
-            var Width = width; //DrawLine still doesnt have this :(
-            var ColorC = color != null ? color : Color.White;
-
-            var fid = Math.Max(8, (180 / MathUtil.RadiansToDegrees((float)(Math.Asin((100 / (2 * Radius)))))));
-            var fid2 = Math.PI * 2 / fid;
-
-            Console.WriteLine(fid2);
-
-            var CirclePoints = new List<Vector2>();
-
-            for (var theta = 0d; theta < Math.PI * 2 + fid2; theta += fid2)
-            {
-                var point = Drawing.WorldToScreen(new Vector3(x + (float)(Radius * Math.Cos(theta)), y, z - (float)(Radius * Math.Sin(theta))));
-                CirclePoints.Add(point);
-            }
-
-            
-            for (var i = 0; CirclePoints.Count - 1 > i; i++)
-            {
-                Drawing.DrawLine(CirclePoints[i], CirclePoints[i + 1], (Color)ColorC);
-            }
-            
-
-            for (var i = 0; i > 5; i++)
-            {
-                Drawing.DrawText("Point here", CirclePoints[i], Color.Red, FontFlags.AntiAlias & FontFlags.DropShadow);
-            }
-        }
-        */
-
-        private static float MinionProjSpeed(Creep creep)
-        {
-            if (creep.ClassID == ClassID.CDOTA_BaseNPC_Creep_Lane && creep.IsRanged)
-            {
-                return 900f;
-            }
-            else if (creep.ClassID == ClassID.CDOTA_BaseNPC_Creep_Siege)
-            {
-                return 1100f;
-            }
-            else if (creep.ClassID == ClassID.CDOTA_BaseNPC_Tower)
-            {
-                return 900f;
-            }
-
-            return float.PositiveInfinity;
+            return unit.Health;
         }
     }
 }
