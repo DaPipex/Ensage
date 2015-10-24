@@ -17,8 +17,8 @@ namespace PippyLastHit
     {
         private static Hero me;
 
-        private static bool gameLoad;
         private static bool onLoad;
+        private static bool RunDrawings;
 
         private static HKC LHHold;
         private static HKC LHToggle;
@@ -43,7 +43,6 @@ namespace PippyLastHit
 
         static void Main(string[] args)
         {
-            gameLoad = false;
             onLoad = false;
 
             //Events
@@ -54,15 +53,16 @@ namespace PippyLastHit
 
         private static void LHUpdate(EventArgs args)
         {
-            if (!Game.IsInGame)  //Menu
+            if (Game.GameState == GameState.NotInGame)  //Menu
             {
                 LHHold = null;
                 LHToggle = null;
                 DNToggle = null;
                 moreTime = null;
                 lessTime = null;
+                me = null;
+                RunDrawings = false;
 
-                gameLoad = false;
                 onLoad = false;
             }
         }
@@ -71,6 +71,8 @@ namespace PippyLastHit
         {
             if (!onLoad)
             {
+                onLoad = true;
+
                 LHHDrawPos = new Vector2(Drawing.Width * 5 / 100, Drawing.Height * 10 / 100);
                 LHTDrawPos = new Vector2(Drawing.Width * 5 / 100, Drawing.Height * 12 / 100);
                 DNTDrawPos = new Vector2(Drawing.Width * 5 / 100, Drawing.Height * 14 / 100);
@@ -86,10 +88,10 @@ namespace PippyLastHit
                 moreTime = new HKC("moreTime", "Add delay", 107, HKC.KeyMode.HOLD, moreTimeDrawPos, Color.LightGreen);
                 lessTime = new HKC("lessTime", "Remove delay", 109, HKC.KeyMode.HOLD, lessTimeDrawPos, Color.LightGreen);
 
-                me = ObjectMgr.LocalHero;
-
-                onLoad = true;
             }
+
+            RunDrawings = true;
+            me = ObjectMgr.LocalHero;
 
             if (moreTime.IsActive && Utils.SleepCheck("moreTimeCheck"))
             {
@@ -119,7 +121,7 @@ namespace PippyLastHit
 
         private static void LHDraw(EventArgs args)
         {
-            if (Game.IsInGame && !Game.IsPaused && !Game.IsWatchingGame && me != null)
+            if (RunDrawings)
             {
                 Drawing.DrawText("Last hitting is: " + ((LHHold.IsActive || LHToggle.IsActive) ? "ENABLED" : "DISABLED"), LHStatusDrawPos,
                     ((LHHold.IsActive || LHToggle.IsActive) ? Color.LightGreen : Color.LightYellow), HQ);
