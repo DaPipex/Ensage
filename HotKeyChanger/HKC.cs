@@ -150,6 +150,14 @@ namespace HotKeyChanger
             {
                 return "SPACE";
             }
+            if (key == 103)
+            {
+                return "NUMPAD 7";
+            }
+            if (key == 105)
+            {
+                return "NUMPAD 9";
+            }
             if (key == 107)
             {
                 return "NUMPAD +";
