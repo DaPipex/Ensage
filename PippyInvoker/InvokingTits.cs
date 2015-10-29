@@ -20,12 +20,14 @@ namespace PippyInvoker
 
         public enum Combos
         {
-            TornadoSnapMeteor = 1,
-            SpiritSnapSun,
-            TornadoEMPMeteorBlast,
-            TornadoEMPSnap,
+            Unknown,
+            EMPTornadoMeteorBlast,
+            MeteorTornadoSnapAlacrity,
+            SunTornadoSpiritIce,
             TornadoBlast,
-            EMPMeteorAlacrity
+            EMPTornado,
+            MeteorTornado,
+
         }
 
         public enum SpellsInvoker
@@ -62,7 +64,7 @@ namespace PippyInvoker
         private const FontFlags HQ = FontFlags.AntiAlias;
 
         private static HKC comboKey;
-        private static HKC harassKey;
+        private static HKC prepareComboKey;
         private static HKC comboNext;
         private static HKC comboPrev;
 
@@ -83,7 +85,7 @@ namespace PippyInvoker
         private static float ChaosMeteorLastT = 0;
         private static float DeafeningBlastLastT = 0;
 
-        private static float[] TornadoUpTimes = { 0.8f, 1.1f, 1.4f, 1.7f, 2.0f, 2.3f, 2.6f, 2.9f };
+        private static int[] TornadoUpTimes = { 800, 1100, 1400, 1700, 2000, 2300, 2600, 2900 };
 
         private static int ColdSnapLastCheck = 0;
         private static int GhostWalkLastCheck = 0;
@@ -96,6 +98,11 @@ namespace PippyInvoker
         private static int ChaosMeteorLastCheck = 0;
         private static int DeafeningBlastLastCheck = 0;
 
+        private static int EMPEndTime;
+        private static int MeteorEndTime;
+        private static int SunEndTime;
+        private static int TornadoEndTime;
+
         private static bool onLoad;
         private static bool RunDrawings;
 
@@ -104,7 +111,9 @@ namespace PippyInvoker
         private static bool DrawExortLearn;
         private static bool DrawInvokeLearn;
 
-        private static bool TornadoInitiator;
+        private static bool TornadoCombo;
+
+        private static bool HasAghanim;
 
 
         public static void Init()
@@ -125,7 +134,7 @@ namespace PippyInvoker
 
                 me = null;
                 comboKey = null;
-                harassKey = null;
+                prepareComboKey = null;
                 comboNext = null;
                 comboPrev = null;
 
@@ -145,7 +154,7 @@ namespace PippyInvoker
 
             if (!onLoad)
             {
-                CurrentCombo = Combos.TornadoEMPMeteorBlast;
+                CurrentCombo = Combos.EMPTornadoMeteorBlast;
 
                 comboKeyDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 10 / 100);
                 harassKeyDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 12 / 100);
@@ -154,7 +163,7 @@ namespace PippyInvoker
                 currentComboDrawPos = new Vector2(Drawing.Width * 87 / 100, Drawing.Height * 19 / 100);
 
                 comboKey = new HKC("combo", "Combo", 32, HKC.KeyMode.HOLD, comboKeyDrawPos, Color.LightBlue);
-                harassKey = new HKC("harass", "Harass", 67, HKC.KeyMode.HOLD, harassKeyDrawPos, Color.LightBlue);
+                prepareComboKey = new HKC("harass", "Prepare Combo", 67, HKC.KeyMode.HOLD, harassKeyDrawPos, Color.LightBlue);
                 comboNext = new HKC("nextCombo", "Next Combo", 105, HKC.KeyMode.HOLD, comboNextDrawPos, Color.Pink);
                 comboPrev = new HKC("prevCombo", "Previous Combo", 103, HKC.KeyMode.HOLD, comboPrevDrawPos, Color.Pink);
 
@@ -192,6 +201,8 @@ namespace PippyInvoker
             spellD = me.Spellbook.SpellD;
             spellF = me.Spellbook.SpellF;
 
+            HasAghanim = me.HasItem(ClassID.CDOTA_Item_UltimateScepter);
+
             /*
             if (spellD != null)
             {
@@ -218,21 +229,197 @@ namespace PippyInvoker
 
         }
 
+        private static void PrepareCombo(Combos combo)
+        {
+
+            Ability[] SequenceOne;
+            Ability[] SequenceTwo;
+
+            switch (combo)
+            {
+                case Combos.EMPTornadoMeteorBlast:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.EMP);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
+
+                    if (Invoke.CanBeCasted())
+                    {
+                        if (!HasInvokerSpell(SequenceOne))
+                        {
+                            foreach (var spell in SequenceOne)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                        else if (!HasInvokerSpell(SequenceTwo))
+                        {
+                            foreach (var spell in SequenceTwo)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                    }
+                    break;
+
+                case Combos.MeteorTornadoSnapAlacrity:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
+
+                    if (Invoke.CanBeCasted())
+                    {
+                        if (!HasInvokerSpell(SequenceOne))
+                        {
+                            foreach (var spell in SequenceOne)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                        else if (!HasInvokerSpell(SequenceTwo))
+                        {
+                            foreach (var spell in SequenceTwo)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                    }
+                    break;
+
+                case Combos.SunTornadoSpiritIce:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.Sun_Strike);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
+
+                    if (Invoke.CanBeCasted())
+                    {
+                        if (!HasInvokerSpell(SequenceOne))
+                        {
+                            foreach (var spell in SequenceOne)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                        else if (!HasInvokerSpell(SequenceTwo))
+                        {
+                            foreach (var spell in SequenceTwo)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                    }
+                    break;
+
+                case Combos.TornadoBlast:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.Tornado);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Deafening_Blast);
+
+                    if (Invoke.CanBeCasted())
+                    {
+                        if (!HasInvokerSpell(SequenceOne))
+                        {
+                            foreach (var spell in SequenceOne)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                        else if (!HasInvokerSpell(SequenceTwo))
+                        {
+                            foreach (var spell in SequenceTwo)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                    }
+                    break;
+                case Combos.EMPTornado:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.EMP);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
+
+                    if (Invoke.CanBeCasted())
+                    {
+                        if (!HasInvokerSpell(SequenceOne))
+                        {
+                            foreach (var spell in SequenceOne)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                        else if (!HasInvokerSpell(SequenceTwo))
+                        {
+                            foreach (var spell in SequenceTwo)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                    }
+                    break;
+                case Combos.MeteorTornado:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
+
+                    if (Invoke.CanBeCasted())
+                    {
+                        if (!HasInvokerSpell(SequenceOne))
+                        {
+                            foreach (var spell in SequenceOne)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                        else if (!HasInvokerSpell(SequenceTwo))
+                        {
+                            foreach (var spell in SequenceTwo)
+                            {
+                                spell.UseAbility();
+                            }
+
+                            Invoke.UseAbility();
+                        }
+                    }
+                    break;
+
+            }
+        }
+
         private static void ComboChecks()
         {
 
             Hero target = null;
 
-            if (comboKey.IsActive)
+            if (prepareComboKey.IsActive && Utils.SleepCheck("prepareCheck"))
+            {
+                PrepareCombo(CurrentCombo);
+                Utils.Sleep(100, "prepareCheck");
+            }
+            else if (comboKey.IsActive && Utils.SleepCheck("comboCheck"))
             {
                 switch (CurrentCombo)
                 {
-                    case Combos.TornadoSnapMeteor:
-                        target = GetTargetMode(Combos.TornadoSnapMeteor);
+                    case Combos.EMPTornadoMeteorBlast:
+                        target = GetTargetMode(Combos.EMPTornadoMeteorBlast);
                         if (target != null)
                         {
                             Orbwalking.Orbwalk(target);
-                            CastCombo(Combos.TornadoSnapMeteor, target);
+                            CastCombo(Combos.EMPTornadoMeteorBlast, target);
                         }
                         else
                         {
@@ -243,12 +430,12 @@ namespace PippyInvoker
                             }
                         }
                         break;
-                    case Combos.SpiritSnapSun:
-                        target = GetTargetMode(Combos.SpiritSnapSun);
+                    case Combos.MeteorTornadoSnapAlacrity:
+                        target = GetTargetMode(Combos.MeteorTornadoSnapAlacrity);
                         if (target != null)
                         {
                             Orbwalking.Orbwalk(target);
-                            CastCombo(Combos.SpiritSnapSun, target);
+                            CastCombo(Combos.MeteorTornadoSnapAlacrity, target);
                         }
                         else
                         {
@@ -259,28 +446,12 @@ namespace PippyInvoker
                             }
                         }
                         break;
-                    case Combos.TornadoEMPMeteorBlast:
-                        target = GetTargetMode(Combos.TornadoEMPMeteorBlast);
+                    case Combos.SunTornadoSpiritIce:
+                        target = GetTargetMode(Combos.SunTornadoSpiritIce);
                         if (target != null)
                         {
                             Orbwalking.Orbwalk(target);
-                            CastCombo(Combos.TornadoEMPMeteorBlast, target);
-                        }
-                        else
-                        {
-                            if (Utils.SleepCheck("moveCheck"))
-                            {
-                                me.Move(Game.MousePosition);
-                                Utils.Sleep(100, "moveCheck");
-                            }
-                        }
-                        break;
-                    case Combos.TornadoEMPSnap:
-                        target = GetTargetMode(Combos.TornadoEMPSnap);
-                        if (target != null)
-                        {
-                            Orbwalking.Orbwalk(target);
-                            CastCombo(Combos.TornadoEMPSnap, target);
+                            CastCombo(Combos.SunTornadoSpiritIce, target);
                         }
                         else
                         {
@@ -300,29 +471,75 @@ namespace PippyInvoker
                         }
                         else
                         {
-                            if (Utils.SleepCheck("moveCHeck"))
+                            if (Utils.SleepCheck("moveCheck"))
                             {
                                 me.Move(Game.MousePosition);
                                 Utils.Sleep(100, "moveCheck");
                             }
                         }
                         break;
-                    case Combos.EMPMeteorAlacrity:
-                        target = GetTargetMode(Combos.EMPMeteorAlacrity);
+                    case Combos.EMPTornado:
+                        target = GetTargetMode(Combos.EMPTornado);
                         if (target != null)
                         {
                             Orbwalking.Orbwalk(target);
-                            CastCombo(Combos.EMPMeteorAlacrity, target);
+                            CastCombo(Combos.EMPTornado, target);
                         }
                         else
                         {
-                            if (Utils.SleepCheck("moveCHeck"))
+                            if (Utils.SleepCheck("moveCheck"))
                             {
                                 me.Move(Game.MousePosition);
                                 Utils.Sleep(100, "moveCheck");
                             }
                         }
                         break;
+                    case Combos.MeteorTornado:
+                        target = GetTargetMode(Combos.MeteorTornado);
+                        if (target != null)
+                        {
+                            Orbwalking.Orbwalk(target);
+                            CastCombo(Combos.MeteorTornado, target);
+                        }
+                        else
+                        {
+                            if (Utils.SleepCheck("moveCheck"))
+                            {
+                                me.Move(Game.MousePosition);
+                                Utils.Sleep(100, "moveCheck");
+                            }
+                        }
+                        break;
+                }
+
+                Utils.Sleep(50, "comboCheck");
+            }
+
+            if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP)))
+            {
+                TornadoCombo = true;
+
+                if (!GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted() && !GetInvokerAbility(GetSpellsCombination(SpellsInvoker.EMP)).CanBeCasted())
+                {
+                    TornadoCombo = false;
+                }
+            }
+            else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)))
+            {
+                TornadoCombo = true;
+
+                if (!GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted() && !GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)).CanBeCasted())
+                {
+                    TornadoCombo = false;
+                }
+            }
+            else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike)))
+            {
+                TornadoCombo = true;
+
+                if (!GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted() && !GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Sun_Strike)).CanBeCasted())
+                {
+                    TornadoCombo = false;
                 }
             }
 
@@ -358,35 +575,35 @@ namespace PippyInvoker
 
             switch (combo)
             {
-                case Combos.TornadoSnapMeteor:
-                    SequenceOne = GetSpellsCombination(SpellsInvoker.Tornado);
-                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Cold_Snap);
-                    SequenceThree = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
-                    break;
-                case Combos.SpiritSnapSun:
-                    SequenceOne = GetSpellsCombination(SpellsInvoker.Forge_Spirit);
-                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Cold_Snap);
-                    SequenceThree = GetSpellsCombination(SpellsInvoker.Sun_Strike);
-                    break;
-                case Combos.TornadoEMPMeteorBlast:
-                    SequenceOne = GetSpellsCombination(SpellsInvoker.Tornado);
-                    SequenceTwo = GetSpellsCombination(SpellsInvoker.EMP);
+                case Combos.EMPTornadoMeteorBlast:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.EMP);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
                     SequenceThree = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
                     SequenceFour = GetSpellsCombination(SpellsInvoker.Deafening_Blast);
                     break;
-                case Combos.TornadoEMPSnap:
-                    SequenceOne = GetSpellsCombination(SpellsInvoker.Tornado);
-                    SequenceTwo = GetSpellsCombination(SpellsInvoker.EMP);
+                case Combos.MeteorTornadoSnapAlacrity:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
                     SequenceThree = GetSpellsCombination(SpellsInvoker.Cold_Snap);
+                    SequenceFour = GetSpellsCombination(SpellsInvoker.Alacrity);
+                    break;
+                case Combos.SunTornadoSpiritIce:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.Sun_Strike);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
+                    SequenceThree = GetSpellsCombination(SpellsInvoker.Forge_Spirit);
+                    SequenceFour = GetSpellsCombination(SpellsInvoker.Ice_Wall);
                     break;
                 case Combos.TornadoBlast:
                     SequenceOne = GetSpellsCombination(SpellsInvoker.Tornado);
                     SequenceTwo = GetSpellsCombination(SpellsInvoker.Deafening_Blast);
                     break;
-                case Combos.EMPMeteorAlacrity:
+                case Combos.EMPTornado:
                     SequenceOne = GetSpellsCombination(SpellsInvoker.EMP);
-                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
-                    SequenceThree = GetSpellsCombination(SpellsInvoker.Alacrity);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
+                    break;
+                case Combos.MeteorTornado:
+                    SequenceOne = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
+                    SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
                     break;
             }
 
@@ -504,24 +721,21 @@ namespace PippyInvoker
 
             #endregion
 
+            var InvokeWait = 150;
+
             if (Invoke.CanBeCasted() && Utils.SleepCheck("InvokeCast"))
             {
                 if (SequenceOne != null)
                 {
                     if (!HasInvokerSpell(SequenceOne) && CanUse(SequenceOne))
                     {
-                        if (GetEnumFromSequence(SequenceOne) == SpellsInvoker.Tornado)
-                        {
-                            TornadoInitiator = true;
-                        }
-
                         foreach (var spell in SequenceOne)
                         {
                             spell.UseAbility();
                         }
 
                         Invoke.UseAbility();
-                        Utils.Sleep(200, "InvokeCast");
+                        Utils.Sleep(InvokeWait, "InvokeCast");
                     }
                 }
 
@@ -535,68 +749,150 @@ namespace PippyInvoker
                         }
 
                         Invoke.UseAbility();
-                        Utils.Sleep(200, "InvokeCast");
+                        Utils.Sleep(InvokeWait, "InvokeCast");
                     }
                 }
 
-                if (SequenceThree != null)
+                if (!TornadoCombo)
                 {
-                    if (!HasInvokerSpell(SequenceThree) && CanUse(SequenceThree))
+                    if (SequenceThree != null)
                     {
-                        foreach (var spell in SequenceThree)
+                        if (!HasInvokerSpell(SequenceThree) && CanUse(SequenceThree))
                         {
-                            spell.UseAbility();
-                        }
+                            foreach (var spell in SequenceThree)
+                            {
+                                spell.UseAbility();
+                            }
 
-                        Invoke.UseAbility();
-                        Utils.Sleep(200, "InvokeCast");
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
                     }
-                }
 
-                if (SequenceFour != null)
-                {
-                    if (!HasInvokerSpell(SequenceFour) && CanUse(SequenceFour))
+                    if (SequenceFour != null)
                     {
-                        foreach (var spell in SequenceFour)
+                        if (!HasInvokerSpell(SequenceFour) && CanUse(SequenceFour))
                         {
-                            spell.UseAbility();
-                        }
+                            foreach (var spell in SequenceFour)
+                            {
+                                spell.UseAbility();
+                            }
 
-                        Invoke.UseAbility();
-                        Utils.Sleep(200, "InvokeCast");
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
                     }
                 }
             }
 
-            var thisDelay = 100f;
 
-            if (Utils.SleepCheck("createSpellCheck"))
+            if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
+            {
+                if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.EMP)).CanBeCasted())
+                {
+                    var TornadoHit = TornadoHitTime(unit);
+                    var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
+
+                    var EMPTime = 2900;
+
+                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                    {
+                        TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                    }
+                    EMPEndTime = Environment.TickCount + EMPTime;
+
+                    if (EMPEndTime > TornadoEndTime)
+                    {
+                        CastInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP), unit);
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                        }
+                    }
+                    else if (EMPEndTime < TornadoEndTime)
+                    {
+                        CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                    }
+                }
+            }
+            else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
+            {
+                if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)).CanBeCasted())
+                {
+                    var TornadoHit = TornadoHitTime(unit);
+                    var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
+
+                    var MeteorTime = 1300;
+
+                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                    {
+                        TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                    }
+                    MeteorEndTime = Environment.TickCount + MeteorTime;
+
+                    if (MeteorEndTime > TornadoEndTime)
+                    {
+                        CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor), unit);
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                        }
+                    }
+                    else if (MeteorEndTime < TornadoEndTime)
+                    {
+                        CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                    }
+                }
+            }
+            else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
+            {
+                if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Sun_Strike)).CanBeCasted())
+                {
+                    var TornadoHit = TornadoHitTime(unit);
+                    var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
+
+                    var SunTime = 1700;
+
+                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                    {
+                        TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                    }
+                    SunEndTime = Environment.TickCount + SunTime;
+
+                    if (SunEndTime > TornadoEndTime)
+                    {
+                        CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike), unit);
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                        }
+                    }
+                    else if (SunEndTime < TornadoEndTime)
+                    {
+                        CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                    }
+                }
+            }
+            else
             {
                 if (HasInvokerSpell(SequenceOne) && GetInvokerAbility(SequenceOne).CanBeCasted())
                 {
                     CastInvokerSpell(SequenceOne, unit);
-                    Utils.Sleep(thisDelay, "createSpellCheck");
                 }
 
-                if (!TornadoInitiator)
+                if (HasInvokerSpell(SequenceTwo) && GetInvokerAbility(SequenceTwo).CanBeCasted())
                 {
-                    if (HasInvokerSpell(SequenceTwo) && GetInvokerAbility(SequenceTwo).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceTwo, unit);
-                        Utils.Sleep(thisDelay, "createSpellCheck");
-                    }
+                    CastInvokerSpell(SequenceTwo, unit);
+                }
 
-                    if (HasInvokerSpell(SequenceThree) && GetInvokerAbility(SequenceThree).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceThree, unit);
-                        Utils.Sleep(thisDelay, "createSpellCheck");
-                    }
+                if (HasInvokerSpell(SequenceThree) && GetInvokerAbility(SequenceThree).CanBeCasted())
+                {
+                    CastInvokerSpell(SequenceThree, unit);
+                }
 
-                    if (HasInvokerSpell(SequenceFour) && GetInvokerAbility(SequenceFour).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceFour, unit);
-                        Utils.Sleep(thisDelay, "createSpellCheck");
-                    }
+                if (HasInvokerSpell(SequenceFour) && GetInvokerAbility(SequenceFour).CanBeCasted())
+                {
+                    CastInvokerSpell(SequenceFour, unit);
                 }
             }
         }
@@ -608,7 +904,7 @@ namespace PippyInvoker
             var spellThree = sequence[2];
 
             SpellsInvoker spellToCast;
-            
+
             if (spellOne == Quas && spellTwo == Quas && spellThree == Quas)
             {
                 spellToCast = SpellsInvoker.Cold_Snap;
@@ -663,68 +959,43 @@ namespace PippyInvoker
                 spellToCast = SpellsInvoker.Alacrity;
             }
 
-            if (Utils.SleepCheck("spellCastDelay"))
+
+            switch (spellToCast)
             {
-                var delay = 70;
 
-                switch (spellToCast)
-                {
-
-                    case SpellsInvoker.Cold_Snap:
-                        me.FindSpell("invoker_cold_snap").UseAbility(target);
-                        Utils.Sleep(delay, "spellCastDelay");
-                        break;
-                    case SpellsInvoker.Ghost_Walk:
-                        me.FindSpell("invoker_ghost_walk").UseAbility();
-                        Utils.Sleep(delay, "spellCastDelay");
-                        break;
-                    case SpellsInvoker.Ice_Wall:
-                        if (Prediction.InFront(me, 200).Distance2D(target) < 105)
-                        {
-                            me.FindSpell("invoker_ice_wall").UseAbility();
-                            Utils.Sleep(delay, "spellCastDelay");
-                        }
-                        break;
-                    case SpellsInvoker.EMP:
-                        me.FindSpell("invoker_emp").UseAbility(target.Position);
-                        Utils.Sleep(delay, "spellCastDelay");
-                        break;
-                    case SpellsInvoker.Tornado:
-                        if (me.FindSpell("invoker_tornado").CastSkillShot(target))
-                        {
-                            var HitTime = TornadoHitTime(target) + 200;
-                            var UpTime = TornadoUpTime(Quas.Level);
-                            Console.WriteLine(HitTime);
-                            Console.WriteLine(UpTime);
-                            Utils.Sleep(delay + HitTime + UpTime, "spellCastDelay");
-                            TornadoInitiator = false;
-                        }
-                        break;
-                    case SpellsInvoker.Alacrity:
-                        me.FindSpell("invoker_alacrity").UseAbility(me);
-                        Utils.Sleep(delay, "spellCastDelay");
-                        break;
-                    case SpellsInvoker.Sun_Strike:
-                        me.FindSpell("invoker_sun_strike").UseAbility(target.Position);
-                        Utils.Sleep(delay, "spellCastDelay");
-                        break;
-                    case SpellsInvoker.Forge_Spirit:
-                        me.FindSpell("invoker_forge_spirit").UseAbility();
-                        Utils.Sleep(delay, "spellCastDelay");
-                        break;
-                    case SpellsInvoker.Chaos_Meteor:
-                        if (me.FindSpell("invoker_chaos_meteor").CastSkillShot(target))
-                        {
-                            Utils.Sleep(delay, "spellCastDelay");
-                        }
-                        break;
-                    case SpellsInvoker.Deafening_Blast:
-                        if (me.FindSpell("invoker_deafening_blast").CastSkillShot(target))
-                        {
-                            Utils.Sleep(delay, "spellCastDelay");
-                        }
-                        break;
-                }
+                case SpellsInvoker.Cold_Snap:
+                    me.FindSpell("invoker_cold_snap").UseAbility(target);
+                    break;
+                case SpellsInvoker.Ghost_Walk:
+                    me.FindSpell("invoker_ghost_walk").UseAbility();
+                    break;
+                case SpellsInvoker.Ice_Wall:
+                    if (Prediction.InFront(me, 200).Distance2D(target) < 105)
+                    {
+                        me.FindSpell("invoker_ice_wall").UseAbility();
+                    }
+                    break;
+                case SpellsInvoker.EMP:
+                    me.FindSpell("invoker_emp").UseAbility(target.Position);
+                    break;
+                case SpellsInvoker.Tornado:
+                    me.FindSpell("invoker_tornado").UseAbility(target.Position);
+                    break;
+                case SpellsInvoker.Alacrity:
+                    me.FindSpell("invoker_alacrity").UseAbility(me);
+                    break;
+                case SpellsInvoker.Sun_Strike:
+                    me.FindSpell("invoker_sun_strike").UseAbility(target.Position);
+                    break;
+                case SpellsInvoker.Forge_Spirit:
+                    me.FindSpell("invoker_forge_spirit").UseAbility();
+                    break;
+                case SpellsInvoker.Chaos_Meteor:
+                    me.FindSpell("invoker_chaos_meteor").UseAbility(target.Position);
+                    break;
+                case SpellsInvoker.Deafening_Blast:
+                    me.FindSpell("invoker_deafening_blast").UseAbility(target.Position);
+                    break;
             }
         }
 
@@ -733,14 +1004,12 @@ namespace PippyInvoker
             var TornadoSpeed = 1000;
             var DistanceToTarget = me.Distance2D(hero);
 
-            Console.WriteLine(DistanceToTarget);
-
             return (int)((DistanceToTarget / TornadoSpeed) * 1000);
         }
 
-        private static float TornadoUpTime(uint level)
+        private static int TornadoUpTime(uint level)
         {
-            return (int)(TornadoUpTimes[level - 1] * 1000);
+            return TornadoUpTimes[level - 1];
         }
 
         private static void InvokerDraw(EventArgs args)
@@ -939,20 +1208,20 @@ namespace PippyInvoker
         {
             switch (combo)
             {
-                case Combos.TornadoSnapMeteor:
+                case Combos.EMPTornadoMeteorBlast:
                     return GetMyCustomTarget(1000);
-                case Combos.SpiritSnapSun:
+                case Combos.MeteorTornadoSnapAlacrity:
                     return GetMyCustomTarget(1000);
-                case Combos.TornadoEMPMeteorBlast:
-                    return GetMyCustomTarget(1000);
-                case Combos.TornadoEMPSnap:
+                case Combos.SunTornadoSpiritIce:
                     return GetMyCustomTarget(1000);
                 case Combos.TornadoBlast:
                     return GetMyCustomTarget(1000);
-                case Combos.EMPMeteorAlacrity:
+                case Combos.EMPTornado:
+                    return GetMyCustomTarget(1000);
+                case Combos.MeteorTornado:
                     return GetMyCustomTarget(1000);
                 default:
-                    return null;
+                    return GetMyCustomTarget(1000);
             }
         }
 
@@ -1022,31 +1291,31 @@ namespace PippyInvoker
             else if (SpellOne == GetSpellsCombination(SpellsInvoker.Alacrity)[0]
                 && SpellTwo == GetSpellsCombination(SpellsInvoker.Alacrity)[1]
                 && SpellThree == GetSpellsCombination(SpellsInvoker.Alacrity)[2])
-                {
+            {
                 return SpellsInvoker.Alacrity;
             }
             else if (SpellOne == GetSpellsCombination(SpellsInvoker.Sun_Strike)[0]
                 && SpellTwo == GetSpellsCombination(SpellsInvoker.Sun_Strike)[1]
                 && SpellThree == GetSpellsCombination(SpellsInvoker.Sun_Strike)[2])
-                {
+            {
                 return SpellsInvoker.Sun_Strike;
             }
             else if (SpellOne == GetSpellsCombination(SpellsInvoker.Forge_Spirit)[0]
                 && SpellTwo == GetSpellsCombination(SpellsInvoker.Forge_Spirit)[1]
                 && SpellThree == GetSpellsCombination(SpellsInvoker.Forge_Spirit)[2])
-                {
+            {
                 return SpellsInvoker.Forge_Spirit;
             }
             else if (SpellOne == GetSpellsCombination(SpellsInvoker.Chaos_Meteor)[0]
                 && SpellTwo == GetSpellsCombination(SpellsInvoker.Chaos_Meteor)[1]
                 && SpellThree == GetSpellsCombination(SpellsInvoker.Chaos_Meteor)[2])
-                    {
+            {
                 return SpellsInvoker.Chaos_Meteor;
             }
             else if (SpellOne == GetSpellsCombination(SpellsInvoker.Deafening_Blast)[0]
                 && SpellTwo == GetSpellsCombination(SpellsInvoker.Deafening_Blast)[1]
                 && SpellThree == GetSpellsCombination(SpellsInvoker.Deafening_Blast)[2])
-                {
+            {
                 return SpellsInvoker.Deafening_Blast;
             }
             else
