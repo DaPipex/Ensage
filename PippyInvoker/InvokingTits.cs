@@ -10,6 +10,8 @@ using Ensage.Common.Extensions;
 using Ensage.Common.AbilityInfo;
 using SharpDX;
 using SharpDX.Direct3D9;
+using System.Windows.Forms;
+using System.Threading;
 
 using HotKeyChanger;
 
@@ -27,6 +29,7 @@ namespace PippyInvoker
             TornadoBlast,
             EMPTornado,
             MeteorTornado,
+            Custom
 
         }
 
@@ -73,6 +76,7 @@ namespace PippyInvoker
         private static Vector2 comboNextDrawPos;
         private static Vector2 comboPrevDrawPos;
         private static Vector2 currentComboDrawPos;
+        private static Vector2 customComboDrawPos;
 
         private static float ColdSnapLastT = 0;
         private static float GhostWalkLastT = 0;
@@ -115,6 +119,8 @@ namespace PippyInvoker
 
         private static bool HasAghanim;
 
+        private static List<string> myCustomCombo;
+
 
         public static void Init()
         {
@@ -122,7 +128,6 @@ namespace PippyInvoker
             Game.OnUpdate += InvokerUpdate;
             Game.OnIngameUpdate += InvokerIngameUpdate;
             Drawing.OnDraw += InvokerDraw;
-
         }
 
         private static void InvokerUpdate(EventArgs args)
@@ -140,6 +145,7 @@ namespace PippyInvoker
 
                 CurrentCooldowns.Clear();
                 CurrentCanUse.Clear();
+                myCustomCombo.Clear();
             }
         }
 
@@ -161,6 +167,7 @@ namespace PippyInvoker
                 comboNextDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 14 / 100);
                 comboPrevDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 16 / 100);
                 currentComboDrawPos = new Vector2(Drawing.Width * 87 / 100, Drawing.Height * 19 / 100);
+                customComboDrawPos = new Vector2(Drawing.Width * 85 / 100, Drawing.Height * 25 / 100);
 
                 comboKey = new HKC("combo", "Combo", 32, HKC.KeyMode.HOLD, comboKeyDrawPos, Color.LightBlue);
                 prepareComboKey = new HKC("harass", "Prepare Combo", 67, HKC.KeyMode.HOLD, harassKeyDrawPos, Color.LightBlue);
@@ -191,6 +198,17 @@ namespace PippyInvoker
 
                 Orbwalking.Load();
 
+                Thread formThread = new Thread(delegate ()
+                {
+                    Application.EnableVisualStyles();
+                    Application.SetCompatibleTextRenderingDefault(false);
+                    Application.Run(new UserComboForm());
+                });
+
+                formThread.SetApartmentState(ApartmentState.STA);
+
+                formThread.Start();
+
                 onLoad = true;
             }
 
@@ -200,6 +218,8 @@ namespace PippyInvoker
             Invoke = me.Spellbook.SpellR;
             spellD = me.Spellbook.SpellD;
             spellF = me.Spellbook.SpellF;
+
+            myCustomCombo = UserComboForm.CheckedList;
 
             HasAghanim = me.HasItem(ClassID.CDOTA_Item_UltimateScepter);
 
@@ -396,7 +416,6 @@ namespace PippyInvoker
                         }
                     }
                     break;
-
             }
         }
 
@@ -405,9 +424,14 @@ namespace PippyInvoker
 
             Hero target = null;
 
-            if (prepareComboKey.IsActive && Utils.SleepCheck("prepareCheck"))
+            if (prepareComboKey.IsActive && Utils.SleepCheck("prepareCheck") && CurrentCombo != Combos.Custom)
             {
                 PrepareCombo(CurrentCombo);
+                Utils.Sleep(100, "prepareCheck");
+            }
+            else if (prepareComboKey.IsActive && Utils.SleepCheck("prepareCheck") && CurrentCombo == Combos.Custom)
+            {
+                PrepareCustomCombo();
                 Utils.Sleep(100, "prepareCheck");
             }
             else if (comboKey.IsActive && Utils.SleepCheck("comboCheck"))
@@ -510,6 +534,22 @@ namespace PippyInvoker
                             }
                         }
                         break;
+                    case Combos.Custom:
+                        target = GetTargetMode(Combos.Custom);
+                        if (target != null)
+                        {
+                            Orbwalking.Orbwalk(target);
+                            CastCustomCombo(target);
+                        }
+                        else
+                        {
+                            if (Utils.SleepCheck("moveCheck"))
+                            {
+                                me.Move(Game.MousePosition);
+                                Utils.Sleep(100, "moveCheck");
+                            }
+                        }
+                        break;
                 }
 
                 Utils.Sleep(50, "comboCheck");
@@ -546,7 +586,7 @@ namespace PippyInvoker
             if (comboNext.IsActive && Utils.SleepCheck("comboNextCheck"))
             {
                 CurrentCombo++;
-                if (CurrentCombo == (Combos)7)
+                if (CurrentCombo == (Combos)8)
                 {
                     CurrentCombo = (Combos)1;
                 }
@@ -558,7 +598,7 @@ namespace PippyInvoker
                 CurrentCombo--;
                 if (CurrentCombo == 0)
                 {
-                    CurrentCombo = (Combos)6;
+                    CurrentCombo = (Combos)7;
                 }
                 Utils.Sleep(150, "comboPrevCheck");
             }
@@ -1045,6 +1085,17 @@ namespace PippyInvoker
             }
 
             Drawing.DrawText("Current Combo: " + CurrentCombo, currentComboDrawPos, Color.White, HQ);
+
+            if (CurrentCombo == Combos.Custom)
+            {
+                if (myCustomCombo.Any())
+                {
+                    for (var i = 0; i < myCustomCombo.Count; i++)
+                    {
+                        Drawing.DrawText(string.Format("[{0}] - {1}", i + 1, myCustomCombo[i]), new Vector2(customComboDrawPos.X, customComboDrawPos.Y + (i + 1) * 20), Color.Yellow, HQ);
+                    }
+                }
+            }
         }
 
         private static Ability[] GetSpellsCombination(SpellsInvoker spellToCreate)
@@ -1578,6 +1629,542 @@ namespace PippyInvoker
                     else
                     {
                         CurrentCanUse[spell] = false;
+                    }
+                }
+            }
+        }
+
+        private static void CastCustomCombo(Hero unit)
+        {
+
+            Ability[] SequenceOne = null;
+            Ability[] SequenceTwo = null;
+            Ability[] SequenceThree = null;
+            Ability[] SequenceFour = null;
+            Ability[] SequenceFive = null;
+            Ability[] SequenceSix = null;
+            Ability[] SequenceSeven = null;
+            Ability[] SequenceEight = null;
+            Ability[] SequenceNine = null;
+            Ability[] SequenceTen = null;
+
+            if (myCustomCombo.Any())
+            {
+                for (int i = 0; i < myCustomCombo.Count; i++)
+                {
+
+                    Ability[] setSequence;
+
+                    switch (myCustomCombo[i])
+                    {
+                        case "Cold Snap":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Cold_Snap);
+                            break;
+                        case "Ghost Walk":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Ghost_Walk);
+                            break;
+                        case "Ice Wall":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Ice_Wall);
+                            break;
+                        case "EMP":
+                            setSequence = GetSpellsCombination(SpellsInvoker.EMP);
+                            break;
+                        case "Tornado":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Tornado);
+                            break;
+                        case "Alacrity":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Alacrity);
+                            break;
+                        case "Sun Strike":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Sun_Strike);
+                            break;
+                        case "Forge Spirit":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Forge_Spirit);
+                            break;
+                        case "Chaos Meteor":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
+                            break;
+                        case "Deafening Blast":
+                            setSequence = GetSpellsCombination(SpellsInvoker.Deafening_Blast);
+                            break;
+                        default:
+                            setSequence = GetSpellsCombination(SpellsInvoker.Alacrity);
+                            break;
+                    }
+
+                    if (i == 0)
+                    {
+                        SequenceOne = setSequence;
+                    }
+                    else if (i == 1)
+                    {
+                        SequenceTwo = setSequence;
+                    }
+                    else if (i == 2)
+                    {
+                        SequenceThree = setSequence;
+                    }
+                    else if (i == 3)
+                    {
+                        SequenceFour = setSequence;
+                    }
+                    else if (i == 4)
+                    {
+                        SequenceFive = setSequence;
+                    }
+                    else if (i == 5)
+                    {
+                        SequenceSix = setSequence;
+                    }
+                    else if (i == 6)
+                    {
+                        SequenceSeven = setSequence;
+                    }
+                    else if (i == 7)
+                    {
+                        SequenceEight = setSequence;
+                    }
+                    else if (i == 8)
+                    {
+                        SequenceNine = setSequence;
+                    }
+                    else if (i == 9)
+                    {
+                        SequenceTen = setSequence;
+                    }
+
+                }
+
+                var InvokeWait = 150;
+
+                if (Invoke.CanBeCasted() && Utils.SleepCheck("InvokeCast"))
+                {
+                    if (SequenceOne != null)
+                    {
+                        if (!HasInvokerSpell(SequenceOne) && CanUse(SequenceOne))
+                        {
+                            foreach (var spell in SequenceOne)
+                            {
+                                spell.UseAbility();
+                            }
+                        }
+
+                        Invoke.UseAbility();
+                        Utils.Sleep(InvokeWait, "InvokeCast");
+                    }
+
+                    if (SequenceTwo != null)
+                    {
+                        if (!HasInvokerSpell(SequenceTwo) && CanUse(SequenceTwo))
+                        {
+                            foreach (var spell in SequenceTwo)
+                            {
+                                spell.UseAbility();
+                            }
+                        }
+
+                        Invoke.UseAbility();
+                        Utils.Sleep(InvokeWait, "InvokeCast");
+                    }
+
+                    if (!TornadoCombo)
+                    {
+                        if (SequenceThree != null)
+                        {
+                            if (!HasInvokerSpell(SequenceThree) && CanUse(SequenceThree))
+                            {
+                                foreach (var spell in SequenceThree)
+                                {
+                                    spell.UseAbility();
+                                }
+                            }
+
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
+
+                        if (SequenceFour != null)
+                        {
+                            if (!HasInvokerSpell(SequenceFour) && CanUse(SequenceFour))
+                            {
+                                foreach (var spell in SequenceFour)
+                                {
+                                    spell.UseAbility();
+                                }
+                            }
+
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
+
+                        if (SequenceFive != null)
+                        {
+                            if (!HasInvokerSpell(SequenceFive) && CanUse(SequenceFive))
+                            {
+                                foreach (var spell in SequenceFive)
+                                {
+                                    spell.UseAbility();
+                                }
+                            }
+
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
+
+                        if (SequenceSix != null)
+                        {
+                            if (!HasInvokerSpell(SequenceSix) && CanUse(SequenceSix))
+                            {
+                                foreach (var spell in SequenceSix)
+                                {
+                                    spell.UseAbility();
+                                }
+                            }
+
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
+
+                        if (SequenceSeven != null)
+                        {
+                            if (!HasInvokerSpell(SequenceSeven) && CanUse(SequenceSeven))
+                            {
+                                foreach (var spell in SequenceSeven)
+                                {
+                                    spell.UseAbility();
+                                }
+                            }
+
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
+
+                        if (SequenceEight != null)
+                        {
+                            if (!HasInvokerSpell(SequenceEight) && CanUse(SequenceEight))
+                            {
+                                foreach (var spell in SequenceEight)
+                                {
+                                    spell.UseAbility();
+                                }
+                            }
+
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
+
+                        if (SequenceNine != null)
+                        {
+                            if (!HasInvokerSpell(SequenceNine) && CanUse(SequenceNine))
+                            {
+                                foreach (var spell in SequenceNine)
+                                {
+                                    spell.UseAbility();
+                                }
+                            }
+
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
+
+                        if (SequenceTen != null)
+                        {
+                            if (!HasInvokerSpell(SequenceTen) && CanUse(SequenceTen))
+                            {
+                                foreach (var spell in SequenceTen)
+                                {
+                                    spell.UseAbility();
+                                }
+                            }
+
+                            Invoke.UseAbility();
+                            Utils.Sleep(InvokeWait, "InvokeCast");
+                        }
+                    }
+                }
+
+                if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
+                {
+                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.EMP)).CanBeCasted())
+                    {
+                        var TornadoHit = TornadoHitTime(unit);
+                        var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
+
+                        var EMPTime = 2900;
+
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                        {
+                            TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                        }
+                        EMPEndTime = Environment.TickCount + EMPTime;
+
+                        if (EMPEndTime > TornadoEndTime)
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP), unit);
+                            if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                            {
+                                CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                            }
+                        }
+                        else if (EMPEndTime < TornadoEndTime)
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                        }
+                    }
+                }
+                else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
+                {
+                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)).CanBeCasted())
+                    {
+                        var TornadoHit = TornadoHitTime(unit);
+                        var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
+
+                        var MeteorTime = 1300;
+
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                        {
+                            TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                        }
+                        MeteorEndTime = Environment.TickCount + MeteorTime;
+
+                        if (MeteorEndTime > TornadoEndTime)
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor), unit);
+                            if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                            {
+                                CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                            }
+                        }
+                        else if (MeteorEndTime < TornadoEndTime)
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                        }
+                    }
+                }
+                else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
+                {
+                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Sun_Strike)).CanBeCasted())
+                    {
+                        var TornadoHit = TornadoHitTime(unit);
+                        var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
+
+                        var SunTime = 1700;
+
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                        {
+                            TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                        }
+                        SunEndTime = Environment.TickCount + SunTime;
+
+                        if (SunEndTime > TornadoEndTime)
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike), unit);
+                            if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                            {
+                                CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                            }
+                        }
+                        else if (SunEndTime < TornadoEndTime)
+                        {
+                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                        }
+                    }
+                }
+                else
+                {
+                    if (HasInvokerSpell(SequenceOne) && GetInvokerAbility(SequenceOne).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceOne, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceTwo) && GetInvokerAbility(SequenceTwo).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceTwo, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceThree) && GetInvokerAbility(SequenceThree).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceThree, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceFour) && GetInvokerAbility(SequenceFour).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceFour, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceFive) && GetInvokerAbility(SequenceFive).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceFive, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceSix) && GetInvokerAbility(SequenceSix).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceSix, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceSeven) && GetInvokerAbility(SequenceSeven).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceSeven, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceEight) && GetInvokerAbility(SequenceEight).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceEight, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceNine) && GetInvokerAbility(SequenceNine).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceNine, unit);
+                    }
+
+                    if (HasInvokerSpell(SequenceTen) && GetInvokerAbility(SequenceTen).CanBeCasted())
+                    {
+                        CastInvokerSpell(SequenceTen, unit);
+                    }
+                }
+            }
+        }
+
+        private static void PrepareCustomCombo()
+        {
+            Ability[] SequenceOne = null;
+            Ability[] SequenceTwo = null;
+
+            if (myCustomCombo.Any())
+            {
+                if (myCustomCombo.Count >= 2)
+                {
+                    switch (myCustomCombo[0])
+                    {
+                        case "Cold Snap":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Cold_Snap);
+                            break;
+                        case "Ghost Walk":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Ghost_Walk);
+                            break;
+                        case "Ice Wall":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Ice_Wall);
+                            break;
+                        case "EMP":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.EMP);
+                            break;
+                        case "Tornado":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Tornado);
+                            break;
+                        case "Alacrity":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Alacrity);
+                            break;
+                        case "Sun Strike":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Sun_Strike);
+                            break;
+                        case "Forge Spirit":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Forge_Spirit);
+                            break;
+                        case "Chaos Meteor":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
+                            break;
+                        case "Deafening Blast":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Deafening_Blast);
+                            break;
+                    }
+
+                    switch (myCustomCombo[1])
+                    {
+                        case "Cold Snap":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Cold_Snap);
+                            break;
+                        case "Ghost Walk":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Ghost_Walk);
+                            break;
+                        case "Ice Wall":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Ice_Wall);
+                            break;
+                        case "EMP":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.EMP);
+                            break;
+                        case "Tornado":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Tornado);
+                            break;
+                        case "Alacrity":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Alacrity);
+                            break;
+                        case "Sun Strike":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Sun_Strike);
+                            break;
+                        case "Forge Spirit":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Forge_Spirit);
+                            break;
+                        case "Chaos Meteor":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
+                            break;
+                        case "Deafening Blast":
+                            SequenceTwo = GetSpellsCombination(SpellsInvoker.Deafening_Blast);
+                            break;
+                    }
+
+                    if (!HasInvokerSpell(SequenceOne) && Invoke.CanBeCasted())
+                    {
+                        foreach (var spell in SequenceOne)
+                        {
+                            spell.UseAbility();
+                        }
+
+                        Invoke.UseAbility();
+                    }
+                    else if (!HasInvokerSpell(SequenceTwo) && Invoke.CanBeCasted())
+                    {
+                        foreach (var spell in SequenceTwo)
+                        {
+                            spell.UseAbility();
+                        }
+
+                        Invoke.UseAbility();
+                    }
+                }
+                else if (myCustomCombo.Count == 1)
+                {
+                    switch (myCustomCombo[0])
+                    {
+                        case "Cold Snap":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Cold_Snap);
+                            break;
+                        case "Ghost Walk":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Ghost_Walk);
+                            break;
+                        case "Ice Wall":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Ice_Wall);
+                            break;
+                        case "EMP":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.EMP);
+                            break;
+                        case "Tornado":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Tornado);
+                            break;
+                        case "Alacrity":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Alacrity);
+                            break;
+                        case "Sun Strike":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Sun_Strike);
+                            break;
+                        case "Forge Spirit":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Forge_Spirit);
+                            break;
+                        case "Chaos Meteor":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Chaos_Meteor);
+                            break;
+                        case "Deafening Blast":
+                            SequenceOne = GetSpellsCombination(SpellsInvoker.Deafening_Blast);
+                            break;
+                    }
+
+                    if (!HasInvokerSpell(SequenceOne) && Invoke.CanBeCasted())
+                    {
+                        foreach (var spell in SequenceOne)
+                        {
+                            spell.UseAbility();
+                        }
+
+                        Invoke.UseAbility();
                     }
                 }
             }
