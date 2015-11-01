@@ -70,13 +70,18 @@ namespace PippyInvoker
         private static HKC prepareComboKey;
         private static HKC comboNext;
         private static HKC comboPrev;
+        private static HKC toggleOrb;
+        private static HKC fleeKey;
 
         private static Vector2 comboKeyDrawPos;
         private static Vector2 harassKeyDrawPos;
         private static Vector2 comboNextDrawPos;
         private static Vector2 comboPrevDrawPos;
+        private static Vector2 orbToggleDrawPos;
+        private static Vector2 fleeDrawPos;
         private static Vector2 currentComboDrawPos;
         private static Vector2 customComboDrawPos;
+        private static Vector2 isOrbwalkingDrawPos;
 
         private static float ColdSnapLastT = 0;
         private static float GhostWalkLastT = 0;
@@ -119,7 +124,7 @@ namespace PippyInvoker
 
         private static bool HasAghanim;
 
-        private static List<string> myCustomCombo;
+        private static List<string> myCustomCombo = new List<string>();
 
 
         public static void Init()
@@ -166,13 +171,18 @@ namespace PippyInvoker
                 harassKeyDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 12 / 100);
                 comboNextDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 14 / 100);
                 comboPrevDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 16 / 100);
-                currentComboDrawPos = new Vector2(Drawing.Width * 87 / 100, Drawing.Height * 19 / 100);
-                customComboDrawPos = new Vector2(Drawing.Width * 85 / 100, Drawing.Height * 25 / 100);
+                orbToggleDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 18 / 100);
+                fleeDrawPos = new Vector2(Drawing.Width * 90 / 100, Drawing.Height * 20 / 100);
+                isOrbwalkingDrawPos = new Vector2(Drawing.Width * 87 / 100, Drawing.Height * 23 / 100);
+                currentComboDrawPos = new Vector2(Drawing.Width * 87 / 100, Drawing.Height * 27 / 100);
+                customComboDrawPos = new Vector2(Drawing.Width * 85 / 100, Drawing.Height * 30 / 100);
 
                 comboKey = new HKC("combo", "Combo", 32, HKC.KeyMode.HOLD, comboKeyDrawPos, Color.LightBlue);
                 prepareComboKey = new HKC("harass", "Prepare Combo", 67, HKC.KeyMode.HOLD, harassKeyDrawPos, Color.LightBlue);
                 comboNext = new HKC("nextCombo", "Next Combo", 105, HKC.KeyMode.HOLD, comboNextDrawPos, Color.Pink);
                 comboPrev = new HKC("prevCombo", "Previous Combo", 103, HKC.KeyMode.HOLD, comboPrevDrawPos, Color.Pink);
+                toggleOrb = new HKC("orbToggle", "Toggle Orbwalking", 101, HKC.KeyMode.TOGGLE, orbToggleDrawPos, Color.Pink);
+                fleeKey = new HKC("fleeing", "Flee (Follows Mouse)", 71, HKC.KeyMode.HOLD, fleeDrawPos, Color.Pink);
 
                 CurrentCooldowns.Add(SpellsInvoker.Cold_Snap, 0);
                 CurrentCooldowns.Add(SpellsInvoker.Ghost_Walk, 0);
@@ -223,27 +233,20 @@ namespace PippyInvoker
 
             HasAghanim = me.HasItem(ClassID.CDOTA_Item_UltimateScepter);
 
-            /*
-            if (spellD != null)
-            {
-                Console.WriteLine("Spell D: " + spellD.Name);
-            }
-            if (spellF != null)
-            {
-                Console.WriteLine("Spell F: " + spellF.Name);
-            }
-            */
-
             RunDrawings = true;
 
             ComboChecks();
 
             CooldownChecks();
 
+            TornadoComboChecks();
+
+            MiscStuff();
+
             /*
-            foreach (SpellsInvoker spell in Enum.GetValues(typeof(SpellsInvoker)))
+            foreach (var buff in me.Modifiers)
             {
-                Console.WriteLine("{0} is {1} and it's cooldown is: {2}", spell.ToString(), CanUse(GetSpellsCombination(spell)), CurrentCooldowns[spell]);
+                Console.WriteLine(buff.Name);
             }
             */
 
@@ -442,7 +445,10 @@ namespace PippyInvoker
                         target = GetTargetMode(Combos.EMPTornadoMeteorBlast);
                         if (target != null)
                         {
-                            Orbwalking.Orbwalk(target);
+                            if (toggleOrb.IsActive)
+                            {
+                                Orbwalking.Orbwalk(target);
+                            }
                             CastCombo(Combos.EMPTornadoMeteorBlast, target);
                         }
                         else
@@ -458,7 +464,10 @@ namespace PippyInvoker
                         target = GetTargetMode(Combos.MeteorTornadoSnapAlacrity);
                         if (target != null)
                         {
-                            Orbwalking.Orbwalk(target);
+                            if (toggleOrb.IsActive)
+                            {
+                                Orbwalking.Orbwalk(target);
+                            }
                             CastCombo(Combos.MeteorTornadoSnapAlacrity, target);
                         }
                         else
@@ -474,7 +483,10 @@ namespace PippyInvoker
                         target = GetTargetMode(Combos.SunTornadoSpiritIce);
                         if (target != null)
                         {
-                            Orbwalking.Orbwalk(target);
+                            if (toggleOrb.IsActive)
+                            {
+                                Orbwalking.Orbwalk(target);
+                            }
                             CastCombo(Combos.SunTornadoSpiritIce, target);
                         }
                         else
@@ -490,7 +502,10 @@ namespace PippyInvoker
                         target = GetTargetMode(Combos.TornadoBlast);
                         if (target != null)
                         {
-                            Orbwalking.Orbwalk(target);
+                            if (toggleOrb.IsActive)
+                            {
+                                Orbwalking.Orbwalk(target);
+                            }
                             CastCombo(Combos.TornadoBlast, target);
                         }
                         else
@@ -506,6 +521,10 @@ namespace PippyInvoker
                         target = GetTargetMode(Combos.EMPTornado);
                         if (target != null)
                         {
+                            if (toggleOrb.IsActive)
+                            {
+                                Orbwalking.Orbwalk(target);
+                            }
                             Orbwalking.Orbwalk(target);
                             CastCombo(Combos.EMPTornado, target);
                         }
@@ -522,7 +541,10 @@ namespace PippyInvoker
                         target = GetTargetMode(Combos.MeteorTornado);
                         if (target != null)
                         {
-                            Orbwalking.Orbwalk(target);
+                            if (toggleOrb.IsActive)
+                            {
+                                Orbwalking.Orbwalk(target);
+                            }
                             CastCombo(Combos.MeteorTornado, target);
                         }
                         else
@@ -538,7 +560,10 @@ namespace PippyInvoker
                         target = GetTargetMode(Combos.Custom);
                         if (target != null)
                         {
-                            Orbwalking.Orbwalk(target);
+                            if (toggleOrb.IsActive)
+                            {
+                                Orbwalking.Orbwalk(target);
+                            }
                             CastCustomCombo(target);
                         }
                         else
@@ -555,33 +580,6 @@ namespace PippyInvoker
                 Utils.Sleep(50, "comboCheck");
             }
 
-            if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP)))
-            {
-                TornadoCombo = true;
-
-                if (!GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted() && !GetInvokerAbility(GetSpellsCombination(SpellsInvoker.EMP)).CanBeCasted())
-                {
-                    TornadoCombo = false;
-                }
-            }
-            else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)))
-            {
-                TornadoCombo = true;
-
-                if (!GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted() && !GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)).CanBeCasted())
-                {
-                    TornadoCombo = false;
-                }
-            }
-            else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike)))
-            {
-                TornadoCombo = true;
-
-                if (!GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted() && !GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Sun_Strike)).CanBeCasted())
-                {
-                    TornadoCombo = false;
-                }
-            }
 
             if (comboNext.IsActive && Utils.SleepCheck("comboNextCheck"))
             {
@@ -1086,6 +1084,8 @@ namespace PippyInvoker
 
             Drawing.DrawText("Current Combo: " + CurrentCombo, currentComboDrawPos, Color.White, HQ);
 
+            Drawing.DrawText((toggleOrb.IsActive ? "Will" : "Will NOT") + " Orbwalk in Combo", isOrbwalkingDrawPos, (toggleOrb.IsActive ? Color.LightGreen : Color.LightGray), HQ);
+
             if (CurrentCombo == Combos.Custom)
             {
                 if (myCustomCombo.Any())
@@ -1133,54 +1133,65 @@ namespace PippyInvoker
             var spellTwo = sequence[1];
             var spellThree = sequence[2];
 
+            var coldSnapName = "invoker_cold_snap";
+            var ghostWalkName = "invoker_ghost_walk";
+            var iceWallName = "invoker_ice_wall";
+            var empName = "invoker_emp";
+            var tornadoName = "invoker_tornado";
+            var alacrityName = "invoker_alacrity";
+            var sunStrikeName = "invoker_sun_strike";
+            var forgeSpiritName = "invoker_forge_spirit";
+            var chaosMeteorName = "invoker_chaos_meteor";
+            var deafeningBlastName = "invoker_deafening_blast";
+
             if (spellOne == Quas && spellTwo == Quas && spellThree == Quas)
             {
-                return (spellD.Name == "invoker_cold_snap" || spellF.Name == "invoker_cold_snap");
+                return (spellD.Name == coldSnapName || spellF.Name == coldSnapName);
             }
 
             else if (spellOne == Quas && spellTwo == Quas && spellThree == Wex)
             {
-                return (spellD.Name == "invoker_ghost_walk" || spellF.Name == "invoker_ghost_walk");
+                return (spellD.Name == ghostWalkName || spellF.Name == ghostWalkName);
             }
 
             else if (spellOne == Quas && spellTwo == Quas && spellThree == Exort)
             {
-                return (spellD.Name == "invoker_ice_wall" || spellF.Name == "invoker_ice_wall");
+                return (spellD.Name == iceWallName || spellF.Name == iceWallName);
             }
 
             else if (spellOne == Wex && spellTwo == Wex && spellThree == Wex)
             {
-                return (spellD.Name == "invoker_emp" || spellF.Name == "invoker_emp");
+                return (spellD.Name == empName || spellF.Name == empName);
             }
 
             else if (spellOne == Wex && spellTwo == Wex && spellThree == Quas)
             {
-                return (spellD.Name == "invoker_tornado" || spellF.Name == "invoker_tornado");
+                return (spellD.Name == tornadoName || spellF.Name == tornadoName);
             }
 
             else if (spellOne == Wex && spellTwo == Wex && spellThree == Exort)
             {
-                return (spellD.Name == "invoker_alacrity" || spellF.Name == "invoker_alacrity");
+                return (spellD.Name == alacrityName || spellF.Name == alacrityName);
             }
 
             else if (spellOne == Exort && spellTwo == Exort && spellThree == Exort)
             {
-                return (spellD.Name == "invoker_sun_strike" || spellF.Name == "invoker_sun_strike");
+                return (spellD.Name == sunStrikeName || spellF.Name == sunStrikeName);
             }
 
             else if (spellOne == Exort && spellTwo == Exort && spellThree == Quas)
             {
-                return (spellD.Name == "invoker_forge_spirit" || spellF.Name == "invoker_forge_spirit");
+                return (spellD.Name == forgeSpiritName || spellF.Name == forgeSpiritName);
             }
 
             else if (spellOne == Exort && spellTwo == Exort && spellThree == Wex)
             {
-                return (spellD.Name == "invoker_chaos_meteor" || spellF.Name == "invoker_chaos_meteor");
+                return (spellD.Name == chaosMeteorName || spellF.Name == chaosMeteorName);
             }
 
             else if (spellOne == Quas && spellTwo == Wex && spellThree == Exort)
             {
-                return (spellD.Name == "invoker_deafening_blast" || spellF.Name == "invoker_deafening_blast");
+                return (spellD.Name == deafeningBlastName || spellF.Name == deafeningBlastName);
             }
 
             return false;
@@ -1270,6 +1281,8 @@ namespace PippyInvoker
                 case Combos.EMPTornado:
                     return GetMyCustomTarget(1000);
                 case Combos.MeteorTornado:
+                    return GetMyCustomTarget(1000);
+                case Combos.Custom:
                     return GetMyCustomTarget(1000);
                 default:
                     return GetMyCustomTarget(1000);
@@ -1653,7 +1666,7 @@ namespace PippyInvoker
                 for (int i = 0; i < myCustomCombo.Count; i++)
                 {
 
-                    Ability[] setSequence;
+                    Ability[] setSequence = GetSpellsCombination(SpellsInvoker.Alacrity);
 
                     switch (myCustomCombo[i])
                     {
@@ -1686,9 +1699,6 @@ namespace PippyInvoker
                             break;
                         case "Deafening Blast":
                             setSequence = GetSpellsCombination(SpellsInvoker.Deafening_Blast);
-                            break;
-                        default:
-                            setSequence = GetSpellsCombination(SpellsInvoker.Alacrity);
                             break;
                     }
 
@@ -1737,290 +1747,298 @@ namespace PippyInvoker
 
                 var InvokeWait = 150;
 
-                if (Invoke.CanBeCasted() && Utils.SleepCheck("InvokeCast"))
+                try
                 {
-                    if (SequenceOne != null)
+                    if (Invoke.CanBeCasted() && Utils.SleepCheck("InvokeCast"))
                     {
-                        if (!HasInvokerSpell(SequenceOne) && CanUse(SequenceOne))
+                        if (SequenceOne != null)
                         {
-                            foreach (var spell in SequenceOne)
+                            if (!HasInvokerSpell(SequenceOne) && CanUse(SequenceOne))
                             {
-                                spell.UseAbility();
+                                foreach (var spell in SequenceOne)
+                                {
+                                    spell.UseAbility();
+                                }
+
+                                Invoke.UseAbility();
+                                Utils.Sleep(InvokeWait, "InvokeCast");
                             }
                         }
 
-                        Invoke.UseAbility();
-                        Utils.Sleep(InvokeWait, "InvokeCast");
+                        if (SequenceTwo != null)
+                        {
+                            if (!HasInvokerSpell(SequenceTwo) && CanUse(SequenceTwo))
+                            {
+                                foreach (var spell in SequenceTwo)
+                                {
+                                    spell.UseAbility();
+                                }
+
+                                Invoke.UseAbility();
+                                Utils.Sleep(InvokeWait, "InvokeCast");
+                            }
+                        }
+
+                        if (!TornadoCombo)
+                        {
+                            if (SequenceThree != null)
+                            {
+                                if (!HasInvokerSpell(SequenceThree) && CanUse(SequenceThree))
+                                {
+                                    foreach (var spell in SequenceThree)
+                                    {
+                                        spell.UseAbility();
+                                    }
+
+                                    Invoke.UseAbility();
+                                    Utils.Sleep(InvokeWait, "InvokeCast");
+                                }
+                            }
+
+                            if (SequenceFour != null)
+                            {
+                                if (!HasInvokerSpell(SequenceFour) && CanUse(SequenceFour))
+                                {
+                                    foreach (var spell in SequenceFour)
+                                    {
+                                        spell.UseAbility();
+                                    }
+
+                                    Invoke.UseAbility();
+                                    Utils.Sleep(InvokeWait, "InvokeCast");
+                                }
+                            }
+
+                            if (SequenceFive != null)
+                            {
+                                if (!HasInvokerSpell(SequenceFive) && CanUse(SequenceFive))
+                                {
+                                    foreach (var spell in SequenceFive)
+                                    {
+                                        spell.UseAbility();
+                                    }
+
+                                    Invoke.UseAbility();
+                                    Utils.Sleep(InvokeWait, "InvokeCast");
+                                }
+                            }
+
+                            if (SequenceSix != null)
+                            {
+                                if (!HasInvokerSpell(SequenceSix) && CanUse(SequenceSix))
+                                {
+                                    foreach (var spell in SequenceSix)
+                                    {
+                                        spell.UseAbility();
+                                    }
+
+                                    Invoke.UseAbility();
+                                    Utils.Sleep(InvokeWait, "InvokeCast");
+                                }
+                            }
+
+                            if (SequenceSeven != null)
+                            {
+                                if (!HasInvokerSpell(SequenceSeven) && CanUse(SequenceSeven))
+                                {
+                                    foreach (var spell in SequenceSeven)
+                                    {
+                                        spell.UseAbility();
+                                    }
+
+                                    Invoke.UseAbility();
+                                    Utils.Sleep(InvokeWait, "InvokeCast");
+                                }
+                            }
+
+                            if (SequenceEight != null)
+                            {
+                                if (!HasInvokerSpell(SequenceEight) && CanUse(SequenceEight))
+                                {
+                                    foreach (var spell in SequenceEight)
+                                    {
+                                        spell.UseAbility();
+                                    }
+
+                                    Invoke.UseAbility();
+                                    Utils.Sleep(InvokeWait, "InvokeCast");
+                                }
+                            }
+
+                            if (SequenceNine != null)
+                            {
+                                if (!HasInvokerSpell(SequenceNine) && CanUse(SequenceNine))
+                                {
+                                    foreach (var spell in SequenceNine)
+                                    {
+                                        spell.UseAbility();
+                                    }
+
+                                    Invoke.UseAbility();
+                                    Utils.Sleep(InvokeWait, "InvokeCast");
+                                }
+                            }
+
+                            if (SequenceTen != null)
+                            {
+                                if (!HasInvokerSpell(SequenceTen) && CanUse(SequenceTen))
+                                {
+                                    foreach (var spell in SequenceTen)
+                                    {
+                                        spell.UseAbility();
+                                    }
+
+                                    Invoke.UseAbility();
+                                    Utils.Sleep(InvokeWait, "InvokeCast");
+                                }
+                            }
+                        }
                     }
 
-                    if (SequenceTwo != null)
+
+                    if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
                     {
-                        if (!HasInvokerSpell(SequenceTwo) && CanUse(SequenceTwo))
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.EMP)).CanBeCasted())
                         {
-                            foreach (var spell in SequenceTwo)
-                            {
-                                spell.UseAbility();
-                            }
-                        }
+                            var TornadoHit = TornadoHitTime(unit);
+                            var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
 
-                        Invoke.UseAbility();
-                        Utils.Sleep(InvokeWait, "InvokeCast");
-                    }
+                            var EMPTime = 2900;
 
-                    if (!TornadoCombo)
-                    {
-                        if (SequenceThree != null)
-                        {
-                            if (!HasInvokerSpell(SequenceThree) && CanUse(SequenceThree))
-                            {
-                                foreach (var spell in SequenceThree)
-                                {
-                                    spell.UseAbility();
-                                }
-                            }
-
-                            Invoke.UseAbility();
-                            Utils.Sleep(InvokeWait, "InvokeCast");
-                        }
-
-                        if (SequenceFour != null)
-                        {
-                            if (!HasInvokerSpell(SequenceFour) && CanUse(SequenceFour))
-                            {
-                                foreach (var spell in SequenceFour)
-                                {
-                                    spell.UseAbility();
-                                }
-                            }
-
-                            Invoke.UseAbility();
-                            Utils.Sleep(InvokeWait, "InvokeCast");
-                        }
-
-                        if (SequenceFive != null)
-                        {
-                            if (!HasInvokerSpell(SequenceFive) && CanUse(SequenceFive))
-                            {
-                                foreach (var spell in SequenceFive)
-                                {
-                                    spell.UseAbility();
-                                }
-                            }
-
-                            Invoke.UseAbility();
-                            Utils.Sleep(InvokeWait, "InvokeCast");
-                        }
-
-                        if (SequenceSix != null)
-                        {
-                            if (!HasInvokerSpell(SequenceSix) && CanUse(SequenceSix))
-                            {
-                                foreach (var spell in SequenceSix)
-                                {
-                                    spell.UseAbility();
-                                }
-                            }
-
-                            Invoke.UseAbility();
-                            Utils.Sleep(InvokeWait, "InvokeCast");
-                        }
-
-                        if (SequenceSeven != null)
-                        {
-                            if (!HasInvokerSpell(SequenceSeven) && CanUse(SequenceSeven))
-                            {
-                                foreach (var spell in SequenceSeven)
-                                {
-                                    spell.UseAbility();
-                                }
-                            }
-
-                            Invoke.UseAbility();
-                            Utils.Sleep(InvokeWait, "InvokeCast");
-                        }
-
-                        if (SequenceEight != null)
-                        {
-                            if (!HasInvokerSpell(SequenceEight) && CanUse(SequenceEight))
-                            {
-                                foreach (var spell in SequenceEight)
-                                {
-                                    spell.UseAbility();
-                                }
-                            }
-
-                            Invoke.UseAbility();
-                            Utils.Sleep(InvokeWait, "InvokeCast");
-                        }
-
-                        if (SequenceNine != null)
-                        {
-                            if (!HasInvokerSpell(SequenceNine) && CanUse(SequenceNine))
-                            {
-                                foreach (var spell in SequenceNine)
-                                {
-                                    spell.UseAbility();
-                                }
-                            }
-
-                            Invoke.UseAbility();
-                            Utils.Sleep(InvokeWait, "InvokeCast");
-                        }
-
-                        if (SequenceTen != null)
-                        {
-                            if (!HasInvokerSpell(SequenceTen) && CanUse(SequenceTen))
-                            {
-                                foreach (var spell in SequenceTen)
-                                {
-                                    spell.UseAbility();
-                                }
-                            }
-
-                            Invoke.UseAbility();
-                            Utils.Sleep(InvokeWait, "InvokeCast");
-                        }
-                    }
-                }
-
-                if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
-                {
-                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.EMP)).CanBeCasted())
-                    {
-                        var TornadoHit = TornadoHitTime(unit);
-                        var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
-
-                        var EMPTime = 2900;
-
-                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
-                        {
-                            TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
-                        }
-                        EMPEndTime = Environment.TickCount + EMPTime;
-
-                        if (EMPEndTime > TornadoEndTime)
-                        {
-                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP), unit);
                             if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                            {
+                                TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                            }
+                            EMPEndTime = Environment.TickCount + EMPTime;
+
+                            if (EMPEndTime > TornadoEndTime)
+                            {
+                                CastInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP), unit);
+                                if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                                {
+                                    CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                                }
+                            }
+                            else if (EMPEndTime < TornadoEndTime)
                             {
                                 CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
                             }
                         }
-                        else if (EMPEndTime < TornadoEndTime)
-                        {
-                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
-                        }
                     }
-                }
-                else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
-                {
-                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)).CanBeCasted())
+                    else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
                     {
-                        var TornadoHit = TornadoHitTime(unit);
-                        var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
-
-                        var MeteorTime = 1300;
-
-                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)).CanBeCasted())
                         {
-                            TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
-                        }
-                        MeteorEndTime = Environment.TickCount + MeteorTime;
+                            var TornadoHit = TornadoHitTime(unit);
+                            var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
 
-                        if (MeteorEndTime > TornadoEndTime)
-                        {
-                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor), unit);
+                            var MeteorTime = 1300;
+
                             if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                            {
+                                TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                            }
+                            MeteorEndTime = Environment.TickCount + MeteorTime;
+
+                            if (MeteorEndTime > TornadoEndTime)
+                            {
+                                CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor), unit);
+                                if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                                {
+                                    CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                                }
+                            }
+                            else if (MeteorEndTime < TornadoEndTime)
                             {
                                 CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
                             }
                         }
-                        else if (MeteorEndTime < TornadoEndTime)
-                        {
-                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
-                        }
                     }
-                }
-                else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
-                {
-                    if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Sun_Strike)).CanBeCasted())
+                    else if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)))
                     {
-                        var TornadoHit = TornadoHitTime(unit);
-                        var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
-
-                        var SunTime = 1700;
-
-                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                        if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Sun_Strike)).CanBeCasted())
                         {
-                            TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
-                        }
-                        SunEndTime = Environment.TickCount + SunTime;
+                            var TornadoHit = TornadoHitTime(unit);
+                            var TornadoUp = TornadoUpTime(Quas.Level + ((HasAghanim) ? (uint)1 : 0));
 
-                        if (SunEndTime > TornadoEndTime)
-                        {
-                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike), unit);
+                            var SunTime = 1700;
+
                             if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                            {
+                                TornadoEndTime = Environment.TickCount + TornadoHit + TornadoUp;
+                            }
+                            SunEndTime = Environment.TickCount + SunTime;
+
+                            if (SunEndTime > TornadoEndTime)
+                            {
+                                CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike), unit);
+                                if (GetInvokerAbility(GetSpellsCombination(SpellsInvoker.Tornado)).CanBeCasted())
+                                {
+                                    CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                                }
+                            }
+                            else if (SunEndTime < TornadoEndTime)
                             {
                                 CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
                             }
                         }
-                        else if (SunEndTime < TornadoEndTime)
+                    }
+                    else
+                    {
+                        if (HasInvokerSpell(SequenceOne) && GetInvokerAbility(SequenceOne).CanBeCasted())
                         {
-                            CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado), unit);
+                            CastInvokerSpell(SequenceOne, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceTwo) && GetInvokerAbility(SequenceTwo).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceTwo, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceThree) && GetInvokerAbility(SequenceThree).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceThree, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceFour) && GetInvokerAbility(SequenceFour).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceFour, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceFive) && GetInvokerAbility(SequenceFive).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceFive, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceSix) && GetInvokerAbility(SequenceSix).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceSix, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceSeven) && GetInvokerAbility(SequenceSeven).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceSeven, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceEight) && GetInvokerAbility(SequenceEight).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceEight, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceNine) && GetInvokerAbility(SequenceNine).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceNine, unit);
+                        }
+
+                        if (HasInvokerSpell(SequenceTen) && GetInvokerAbility(SequenceTen).CanBeCasted())
+                        {
+                            CastInvokerSpell(SequenceTen, unit);
                         }
                     }
                 }
-                else
+                catch (NullReferenceException ex)
                 {
-                    if (HasInvokerSpell(SequenceOne) && GetInvokerAbility(SequenceOne).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceOne, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceTwo) && GetInvokerAbility(SequenceTwo).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceTwo, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceThree) && GetInvokerAbility(SequenceThree).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceThree, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceFour) && GetInvokerAbility(SequenceFour).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceFour, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceFive) && GetInvokerAbility(SequenceFive).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceFive, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceSix) && GetInvokerAbility(SequenceSix).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceSix, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceSeven) && GetInvokerAbility(SequenceSeven).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceSeven, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceEight) && GetInvokerAbility(SequenceEight).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceEight, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceNine) && GetInvokerAbility(SequenceNine).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceNine, unit);
-                    }
-
-                    if (HasInvokerSpell(SequenceTen) && GetInvokerAbility(SequenceTen).CanBeCasted())
-                    {
-                        CastInvokerSpell(SequenceTen, unit);
-                    }
+                    //Console.WriteLine("FUCKING EXCEPTION YOU FUCKING FUCK STOP FUCKING APPEARING FUUUUUUUUUUUCK");
                 }
             }
         }
@@ -2165,6 +2183,106 @@ namespace PippyInvoker
                         }
 
                         Invoke.UseAbility();
+                    }
+                }
+            }
+        }
+
+        private static void TornadoComboChecks()
+        {
+            if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.EMP)))
+            {
+                if (!CanUse(GetSpellsCombination(SpellsInvoker.Tornado)) && !CanUse(GetSpellsCombination(SpellsInvoker.EMP)))
+                {
+                    TornadoCombo = false;
+                }
+                else
+                {
+                    TornadoCombo = true;
+                    return;
+                }
+            }
+
+            if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)))
+            {
+                if (!CanUse(GetSpellsCombination(SpellsInvoker.Tornado)) && !CanUse(GetSpellsCombination(SpellsInvoker.Chaos_Meteor)))
+                {
+                    TornadoCombo = false;
+                }
+                else
+                {
+                    TornadoCombo = true;
+                    return;
+                }
+            }
+
+            if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Tornado)) && HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Sun_Strike)))
+            {
+                if (!CanUse(GetSpellsCombination(SpellsInvoker.Tornado)) && !CanUse(GetSpellsCombination(SpellsInvoker.Sun_Strike)))
+                {
+                    TornadoCombo = false;
+                }
+                else
+                {
+                    TornadoCombo = true;
+                    return;
+                }
+            }
+
+            TornadoCombo = false;
+        }
+
+        private static void MiscStuff()
+        {
+            if (fleeKey.IsActive)
+            {
+                if (Utils.SleepCheck("fleeMove"))
+                {
+                    me.Move(Game.MousePosition);
+                    Utils.Sleep(80, "fleeMove");
+                }
+
+                if (Invoke.CanBeCasted() && Utils.SleepCheck("InvokeFleeCheck"))
+                {
+                    if (!HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Ghost_Walk)) && CanUse(GetSpellsCombination(SpellsInvoker.Ghost_Walk)))
+                    {
+                        foreach (var spell in GetSpellsCombination(SpellsInvoker.Ghost_Walk))
+                        {
+                            spell.UseAbility();
+                        }
+
+                        Invoke.UseAbility();
+                        Utils.Sleep(1000, "InvokeFleeCheck");
+                    }
+                }
+
+                var currentWexes = 0;
+
+                foreach (var buff in me.Modifiers)
+                {
+                    if (buff.Name == "modifier_invoker_wex_instance")
+                    {
+                        currentWexes++;
+                    }
+                }
+
+                if (HasInvokerSpell(GetSpellsCombination(SpellsInvoker.Ghost_Walk)) && CanUse(GetSpellsCombination(SpellsInvoker.Ghost_Walk)) && Utils.SleepCheck("GWCastCheck"))
+                {
+                    Wex.UseAbility();
+                    Wex.UseAbility();
+                    Wex.UseAbility();
+
+                    CastInvokerSpell(GetSpellsCombination(SpellsInvoker.Ghost_Walk), me);
+                    Utils.Sleep(1000, "GWCastCheck");
+                }
+                else
+                {
+                    if (!me.Modifiers.ToList().Exists(buff => buff.Name == "modifier_invoker_ghost_walk_self"))
+                    {
+                        if (currentWexes < 3 && Utils.SleepCheck("GWCastCheck"))
+                        {
+                            Wex.UseAbility();
+                        }
                     }
                 }
             }
